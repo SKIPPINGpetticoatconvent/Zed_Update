@@ -166,9 +166,19 @@ class UpdaterGUI(QMainWindow):
                 # 优先使用支持中文的字体
                 chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'Arial Unicode MS']
                 for font_name in chinese_fonts:
-                    if QFontDatabase().hasFamily(font_name):
-                        font.setFamily(font_name)
-                        break
+                    try:
+                        # PyQt5的正确方法是families()
+                        available_fonts = QFontDatabase().families()
+                        if font_name in available_fonts:
+                            font.setFamily(font_name)
+                            break
+                    except (AttributeError, TypeError):
+                        # 如果方法不兼容，使用退回策略
+                        try:
+                            font.setFamily(font_name)
+                            break
+                        except Exception:
+                            continue
                 else:
                     # 如果没有找到中文字体，使用系统默认
                     font.setFamily("Arial")
@@ -557,9 +567,19 @@ class UpdaterGUI(QMainWindow):
             # Windows下优先使用支持中文的等宽字体
             monospace_fonts = ['Consolas', 'Courier New', 'SimSun', 'Microsoft YaHei']
             for font_name in monospace_fonts:
-                if QFontDatabase().hasFamily(font_name):
-                    log_font.setFamily(font_name)
-                    break
+                try:
+                    # 使用PyQt5兼容的families()方法
+                    available_fonts = QFontDatabase.families()
+                    if font_name in available_fonts:
+                        log_font.setFamily(font_name)
+                        break
+                except (AttributeError, TypeError):
+                    # 如果方法不存在，使用默认策略
+                    try:
+                        log_font.setFamily(font_name)
+                        break
+                    except Exception:
+                        continue
         else:
             log_font.setFamily("monospace")
 

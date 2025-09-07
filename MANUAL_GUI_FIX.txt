@@ -1,0 +1,103 @@
+手动修复Zed Updater GUI字体错误
+===================================
+
+问题：
+PyQt5的QFontDatabase对象没有hasFamily()方法，导致启动失败：
+AttributeError: 'QFontDatabase' object has no attribute 'hasFamily'
+
+解决方案：
+将所有QFontDatabase().hasFamily(font_name)调用替换为安全的字体检查方法。
+
+===================================
+
+修复1: updater/gui.py 第169行 (setup_fonts方法)
+
+BEFORE:
+                chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'Arial Unicode MS']
+                for font_name in chinese_fonts:
+                    if QFontDatabase().hasFamily(font_name):
+                        font.setFamily(font_name)
+                        break
+
+AFTER:
+                chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'Arial Unicode MS']
+                for font_name in chinese_fonts:
+                    try:
+                        # PyQt5的正确方法是families()
+                        available_fonts = QFontDatabase().families()
+                        if font_name in available_fonts:
+                            font.setFamily(font_name)
+                            break
+                    except (AttributeError, TypeError):
+                        # 如果方法不兼容，使用退回策略
+                        try:
+                            font.setFamily(font_name)
+                            break
+                        except Exception:
+                            continue
+
+===================================
+
+修复2: updater/gui.py 第560行 (create_log_tab方法)
+
+BEFORE:
+            monospace_fonts = ['Consolas', 'Courier New', 'SimSun', 'Microsoft YaHei']
+            for font_name in monospace_fonts:
+                if QFontDatabase().hasFamily(font_name):
+                    log_font.setFamily(font_name)
+                    break
+
+AFTER:
+            monospace_fonts = ['Consolas', 'Courier New', 'SimSun', 'Microsoft YaHei']
+            for font_name in monospace_fonts:
+                try:
+                    # 使用PyQt5兼容的families()方法
+                    available_fonts = QFontDatabase.families()
+                    if font_name in available_fonts:
+                        log_font.setFamily(font_name)
+                        break
+                except (AttributeError, TypeError):
+                    # 如果方法不存在，使用默认策略
+                    try:
+                        log_font.setFamily(font_name)
+                        break
+                    except Exception:
+                        continue
+
+===================================
+
+如何应用修复：
+
+1. 打开 updater/gui.py 文件
+2. 找到第169行附近（setup_fonts方法）的字体检查代码
+3. 替换为修复后的代码（修复1）
+4. 找到第560行附近（create_log_tab方法）的字体检查代码
+5. 替换为修复后的代码（修复2）
+6. 保存文件
+
+===================================
+
+测试修复：
+
+python main.py --gui
+
+如果应用程序成功启动，则修复完成！
+
+===================================
+
+备用方案：
+
+如果上述修复不工作，可以添加以下兼容性函数：
+
+def safe_font_check(font_name):
+    \"\"\"安全检查字体可用性\"\"\"
+    try:
+        # 尝试PyQt5的方法
+        available_fonts = QFontDatabase().families()
+        return font_name in available_fonts
+    except AttributeError:
+        # 使用退回策略
+        try:
+            return QFontDatabase().hasFamily(font_name)
+        except AttributeError:
+            return True  # 假设可以工作

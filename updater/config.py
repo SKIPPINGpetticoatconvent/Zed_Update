@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 import logging
+import tempfile
+import threading
 
 # UTF-8兼容性设置
 if sys.platform == 'win32':
@@ -88,6 +90,7 @@ class Config:
         """
         self.config_file = Path(config_file)
         self.config = self.DEFAULT_CONFIG.copy()
+        self.lock = threading.RLock()  # 添加线程锁保护配置操作
         self.load_config()
 
     def load_config(self) -> None:

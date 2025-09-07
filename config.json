@@ -2,8 +2,8 @@
     "zed_install_path": "D:\\Zed.exe",
     "backup_enabled": true,
     "backup_count": 3,
-    "github_repo": "zed-industries/zed",
-    "github_api_url": "https://api.github.com/repos/zed-industries/zed/releases/latest",
+    "github_repo": "TC999/zed-loc",
+    "github_api_url": "https://api.github.com/repos/TC999/zed-loc/releases/latest",
     "download_timeout": 300,
     "retry_count": 3,
     "auto_check_enabled": true,
@@ -35,7 +35,7 @@
     "window_height": 500,
     "minimize_to_tray": true,
     "start_with_system": false,
-    "current_version": "",
-    "last_check_time": "2025-09-07T09:57:16.164757",
-    "last_update_time": ""
+    "current_version": "20250906",
+    "last_check_time": "2025-09-07T10:58:30.828875",
+    "last_update_time": "2025-09-07T10:59:57.902092"
 }
