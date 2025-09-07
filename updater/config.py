@@ -7,9 +7,22 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 import logging
+
+# UTF-8兼容性设置
+if sys.platform == 'win32':
+    # 确保Windows下的文件操作使用UTF-8编码
+    import locale
+    try:
+        locale.setlocale(locale.LC_ALL, 'Chinese_China.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        except:
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +94,7 @@ class Config:
         """从文件加载配置"""
         try:
             if self.config_file.exists():
-                with open(self.config_file, 'r', encoding='utf-8') as f:
+                with open(self.config_file, 'r', encoding='utf-8-sig') as f:
                     loaded_config = json.load(f)
                     # 合并配置，保留默认值
                     self.config.update(loaded_config)
@@ -89,6 +102,20 @@ class Config:
             else:
                 logger.info("配置文件不存在，使用默认配置")
                 self.save_config()  # 保存默认配置
+        except UnicodeDecodeError as e:
+            logger.error(f"配置文件编码错误: {e}")
+            logger.info("尝试使用其他编码格式加载...")
+            try:
+                # 尝试使用系统默认编码
+                with open(self.config_file, 'r', encoding=locale.getpreferredencoding()) as f:
+                    loaded_config = json.load(f)
+                    self.config.update(loaded_config)
+                    logger.info("使用系统默认编码成功加载配置")
+                    # 重新保存为UTF-8格式
+                    self.save_config()
+            except Exception as fallback_e:
+                logger.error(f"使用备用编码加载失败: {fallback_e}")
+                logger.info("使用默认配置")
         except Exception as e:
             logger.error(f"加载配置文件失败: {e}")
             logger.info("使用默认配置")
@@ -103,10 +130,22 @@ class Config:
             # 确保目录存在
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            # 使用UTF-8 BOM格式保存，确保Windows兼容性
+            with open(self.config_file, 'w', encoding='utf-8-sig') as f:
                 json.dump(self.config, f, indent=4, ensure_ascii=False)
             logger.info(f"配置已保存到 {self.config_file}")
             return True
+        except UnicodeEncodeError as e:
+            logger.error(f"配置文件编码错误: {e}")
+            try:
+                # 备用保存方式，确保ASCII兼容
+                with open(self.config_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.config, f, indent=4, ensure_ascii=True)
+                logger.info("使用ASCII兼容模式保存配置")
+                return True
+            except Exception as fallback_e:
+                logger.error(f"备用保存方式失败: {fallback_e}")
+                return False
         except Exception as e:
             logger.error(f"保存配置文件失败: {e}")
             return False

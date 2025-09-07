@@ -12,6 +12,35 @@ import shutil
 import winreg
 from pathlib import Path
 import json
+import locale
+
+# UTF-8兼容性设置
+if sys.platform == 'win32':
+    # 设置控制台代码页为UTF-8
+    try:
+        os.system('chcp 65001 > nul')
+    except:
+        pass
+
+    # 设置环境变量确保UTF-8编码
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+    # 重新配置标准输出流
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except:
+            pass
+
+    # 设置本地化
+    try:
+        locale.setlocale(locale.LC_ALL, 'Chinese_China.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        except:
+            pass
 
 class ZedUpdaterInstaller:
     """Zed更新程序安装器"""
@@ -78,32 +107,35 @@ class ZedUpdaterInstaller:
             # 创建GUI启动脚本
             gui_batch = self.install_dir / 'ZedUpdater.bat'
             gui_content = f'''@echo off
+chcp 65001 >nul
 cd /d "{self.install_dir}"
 "{self.python_exe}" main.py --gui
 pause
 '''
-            with open(gui_batch, 'w', encoding='utf-8') as f:
+            with open(gui_batch, 'w', encoding='utf-8-sig') as f:
                 f.write(gui_content)
             print(f"✅ GUI启动脚本已创建: {gui_batch}")
 
             # 创建命令行更新脚本
             update_batch = self.install_dir / 'ZedUpdate.bat'
             update_content = f'''@echo off
+chcp 65001 >nul
 cd /d "{self.install_dir}"
 "{self.python_exe}" main.py --update
 pause
 '''
-            with open(update_batch, 'w', encoding='utf-8') as f:
+            with open(update_batch, 'w', encoding='utf-8-sig') as f:
                 f.write(update_content)
             print(f"✅ 更新脚本已创建: {update_batch}")
 
             # 创建静默更新脚本（用于计划任务）
             silent_batch = self.install_dir / 'ZedUpdateSilent.bat'
             silent_content = f'''@echo off
+chcp 65001 >nul
 cd /d "{self.install_dir}"
 "{self.python_exe}" main.py --update >nul 2>&1
 '''
-            with open(silent_batch, 'w', encoding='utf-8') as f:
+            with open(silent_batch, 'w', encoding='utf-8-sig') as f:
                 f.write(silent_content)
             print(f"✅ 静默更新脚本已创建: {silent_batch}")
 
@@ -236,7 +268,7 @@ cd /d "{self.install_dir}"
                 'retry_count': 3
             }
 
-            with open(config_file, 'w', encoding='utf-8') as f:
+            with open(config_file, 'w', encoding='utf-8-sig') as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
 
             print(f"✅ 默认配置文件已创建: {config_file}")
@@ -282,7 +314,8 @@ cd /d "{self.install_dir}"
             result = subprocess.run([
                 self.python_exe, '-c',
                 'import updater; print("✅ 模块导入成功")'
-            ], cwd=self.install_dir, capture_output=True, text=True, timeout=10)
+            ], cwd=self.install_dir, capture_output=True, text=True, timeout=10,
+            env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
 
             if result.returncode == 0:
                 print("✅ 安装测试通过")
@@ -357,7 +390,8 @@ cd /d "{self.install_dir}"
             choice = input("\n是否现在启动程序? (y/n): ").lower().strip()
             if choice in ['y', 'yes', '是']:
                 print("启动程序...")
-                subprocess.Popen([self.python_exe, str(self.main_script), '--gui'])
+                subprocess.Popen([self.python_exe, str(self.main_script), '--gui'],
+                               env={**os.environ, 'PYTHONIOENCODING': 'utf-8'})
         except KeyboardInterrupt:
             pass
 

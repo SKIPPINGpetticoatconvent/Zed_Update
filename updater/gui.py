@@ -16,9 +16,25 @@ from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QSystemTrayIcon, QMenu, QAction,
     QTimeEdit, QListWidget, QSplitter, QFrame
 )
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QTime
-from PyQt5.QtGui import QIcon, QPixmap, QFont, QPalette
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QTime, QTextCodec
+from PyQt5.QtGui import QIcon, QPixmap, QFont, QPalette, QFontDatabase
 import logging
+import locale
+import os
+
+# UTF-8兼容性设置
+if sys.platform == 'win32':
+    # 确保Windows下的GUI文本显示使用UTF-8编码
+    try:
+        locale.setlocale(locale.LC_ALL, 'Chinese_China.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        except:
+            pass
+
+    # 设置环境变量确保UTF-8编码
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +133,9 @@ class UpdaterGUI(QMainWindow):
         self.setWindowTitle("Zed Editor 自动更新程序")
         self.setGeometry(100, 100, 700, 600)
 
+        # 设置应用程序字体，确保中文显示正常
+        self.setup_fonts()
+
         # 创建中央部件
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -135,6 +154,44 @@ class UpdaterGUI(QMainWindow):
 
         # 状态栏
         self.statusBar().showMessage("就绪")
+
+    def setup_fonts(self):
+        """设置应用程序字体，确保UTF-8字符显示正常"""
+        try:
+            # 获取系统默认字体
+            font = QFont()
+
+            # Windows系统字体设置
+            if sys.platform == 'win32':
+                # 优先使用支持中文的字体
+                chinese_fonts = ['Microsoft YaHei', 'SimHei', 'SimSun', 'Arial Unicode MS']
+                for font_name in chinese_fonts:
+                    if QFontDatabase().hasFamily(font_name):
+                        font.setFamily(font_name)
+                        break
+                else:
+                    # 如果没有找到中文字体，使用系统默认
+                    font.setFamily("Arial")
+
+            # 设置字体大小
+            font.setPointSize(9)
+            font.setStyleHint(QFont.SansSerif)
+
+            # 应用到整个应用程序
+            QApplication.instance().setFont(font)
+
+            # 设置文本编码
+            try:
+                codec = QTextCodec.codecForName("UTF-8")
+                if codec:
+                    QTextCodec.setCodecForLocale(codec)
+            except:
+                pass
+
+            logger.info(f"字体设置完成: {font.family()}")
+
+        except Exception as e:
+            logger.warning(f"字体设置失败: {e}")
 
     def create_main_tab(self):
         """创建主界面选项卡"""
@@ -493,7 +550,23 @@ class UpdaterGUI(QMainWindow):
         # 日志显示
         self.log_display = QTextEdit()
         self.log_display.setReadOnly(True)
-        self.log_display.setFont(QFont("Consolas", 9))
+
+        # 设置等宽字体，确保中文字符正常显示
+        log_font = QFont()
+        if sys.platform == 'win32':
+            # Windows下优先使用支持中文的等宽字体
+            monospace_fonts = ['Consolas', 'Courier New', 'SimSun', 'Microsoft YaHei']
+            for font_name in monospace_fonts:
+                if QFontDatabase().hasFamily(font_name):
+                    log_font.setFamily(font_name)
+                    break
+        else:
+            log_font.setFamily("monospace")
+
+        log_font.setPointSize(9)
+        log_font.setFixedPitch(True)
+        self.log_display.setFont(log_font)
+
         layout.addWidget(self.log_display)
 
         # 日志控制
@@ -1006,8 +1079,27 @@ class UpdaterGUI(QMainWindow):
         try:
             log_file = Path('zed_updater.log')
             if log_file.exists():
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                # 尝试多种编码格式读取日志文件
+                encodings = ['utf-8-sig', 'utf-8', 'gbk', 'gb2312', locale.getpreferredencoding()]
+                content = None
+
+                for encoding in encodings:
+                    try:
+                        with open(log_file, 'r', encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                    except Exception:
+                        break
+
+                if content is None:
+                    # 如果所有编码都失败，使用二进制模式读取并处理错误字符
+                    with open(log_file, 'rb') as f:
+                        raw_content = f.read()
+                        content = raw_content.decode('utf-8', errors='replace')
+
+                if content:
                     # 只显示最后1000行
                     lines = content.split('\n')
                     if len(lines) > 1000:
@@ -1034,7 +1126,8 @@ class UpdaterGUI(QMainWindow):
             )
 
             if file_path:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                # 使用UTF-8 BOM格式保存，确保Windows记事本能正确显示中文
+                with open(file_path, 'w', encoding='utf-8-sig') as f:
                     f.write(self.log_display.toPlainText())
                 QMessageBox.information(self, "保存成功", f"日志已保存到: {file_path}")
 

@@ -14,22 +14,56 @@ import os
 import json
 import logging
 from pathlib import Path
+
+# 设置默认编码为UTF-8
+import locale
+import codecs
+
+# 确保标准输出使用UTF-8编码
+if sys.platform == 'win32':
+    # Windows系统UTF-8兼容性设置
+    try:
+        # 尝试设置控制台代码页为UTF-8
+        os.system('chcp 65001 > nul')
+    except:
+        pass
+
+    # 设置环境变量确保UTF-8编码
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+    # 重新配置标准输出流
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+        except:
+            pass
+
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QTextCodec
 from updater.gui import UpdaterGUI
 from updater.scheduler import UpdateScheduler
 from updater.updater import ZedUpdater
 from updater.config import Config
 
-# 设置日志
+# 设置日志，确保UTF-8编码
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('zed_updater.log', encoding='utf-8'),
-        logging.StreamHandler()
+        logging.FileHandler('zed_updater.log', encoding='utf-8', mode='a'),
+        logging.StreamHandler(sys.stdout)
     ]
 )
+
+# 确保日志处理器使用UTF-8编码
+for handler in logging.root.handlers:
+    if isinstance(handler, logging.StreamHandler):
+        if hasattr(handler.stream, 'reconfigure'):
+            try:
+                handler.stream.reconfigure(encoding='utf-8')
+            except:
+                pass
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +76,19 @@ class ZedUpdateApp:
     def run_gui(self):
         """运行图形界面"""
         app = QApplication(sys.argv)
+
+        # 设置Qt应用程序的文本编码为UTF-8
+        try:
+            codec = QTextCodec.codecForName("UTF-8")
+            QTextCodec.setCodecForLocale(codec)
+        except:
+            pass
+
+        # 设置应用程序属性
+        app.setApplicationName("Zed Editor 自动更新程序")
+        app.setApplicationVersion("1.0.0")
+        app.setOrganizationName("ZedUpdater")
+
         gui = UpdaterGUI(self.updater, self.scheduler, self.config)
         gui.show()
 

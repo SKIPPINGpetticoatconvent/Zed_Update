@@ -18,9 +18,19 @@ __description__ = "Zed Editor 自动更新程序"
 from .config import Config
 from .updater import ZedUpdater
 from .scheduler import UpdateScheduler
+from .encoding_utils import EncodingUtils
+
+# 初始化UTF-8环境
+try:
+    EncodingUtils.setup_utf8_environment()
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"初始化UTF-8环境失败: {e}")
 
 __all__ = [
     'Config',
     'ZedUpdater',
-    'UpdateScheduler'
+    'UpdateScheduler',
+    'EncodingUtils'
 ]

@@ -19,6 +19,21 @@ import logging
 import time
 import tempfile
 import zipfile
+import locale
+
+# UTF-8兼容性设置
+if sys.platform == 'win32':
+    # 确保Windows下的文件操作使用UTF-8编码
+    try:
+        locale.setlocale(locale.LC_ALL, 'Chinese_China.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        except:
+            pass
+
+    # 设置环境变量确保UTF-8编码
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 logger = logging.getLogger(__name__)
 

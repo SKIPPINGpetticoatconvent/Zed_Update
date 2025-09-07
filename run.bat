@@ -1,6 +1,10 @@
 @echo off
-chcp 65001 >nul
+:: 设置UTF-8编码支持
+chcp 65001 >nul 2>&1
 title Zed Editor 自动更新程序
+
+:: 设置环境变量确保UTF-8编码
+set PYTHONIOENCODING=utf-8
 
 :: 设置工作目录到批处理文件所在目录
 cd /d "%~dp0"
@@ -48,24 +52,28 @@ goto menu
 :gui
 echo.
 echo 正在启动图形界面...
+set PYTHONIOENCODING=utf-8
 python main.py --gui
 goto end
 
 :update
 echo.
 echo 正在检查并更新Zed...
+set PYTHONIOENCODING=utf-8
 python main.py --update
 goto end
 
 :install
 echo.
 echo 正在运行安装程序...
+set PYTHONIOENCODING=utf-8
 python install.py
 goto end
 
 :uninstall
 echo.
 echo 正在运行卸载程序...
+set PYTHONIOENCODING=utf-8
 python uninstall.py
 goto end
 
