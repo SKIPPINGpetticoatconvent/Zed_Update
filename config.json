@@ -25,9 +25,9 @@
     "log_level": "INFO",
     "window_width": 600,
     "window_height": 500,
-    "minimize_to_tray": true,
-    "start_with_system": true,
-    "current_version": "20250906",
+    "minimize_to_tray": false,
+    "start_with_system": false,
+    "current_version": "20250907",
     "last_check_time": "2025-09-07T10:58:30.828875",
-    "last_update_time": "2025-09-07T11:23:29.802493"
+    "last_update_time": "2025-09-08T09:25:30.963623"
 }
