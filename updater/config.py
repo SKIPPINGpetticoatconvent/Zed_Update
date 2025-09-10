@@ -38,8 +38,8 @@ class Config:
         'backup_count': 3,
 
         # GitHub设置
-        'github_repo': 'zed-industries/zed',
-        'github_api_url': 'https://api.github.com/repos/zed-industries/zed/releases/latest',
+        'github_repo': 'TC999/zed-loc',
+        'github_api_url': 'https://api.github.com/repos/TC999/zed-loc/releases/latest',
         'download_timeout': 300,
         'retry_count': 3,
 

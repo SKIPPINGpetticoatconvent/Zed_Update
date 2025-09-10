@@ -262,8 +262,8 @@ cd /d "{self.install_dir}"
                 'backup_count': 3,
                 'show_notifications': True,
                 'minimize_to_tray': True,
-                'github_repo': 'zed-industries/zed',
-                'github_api_url': 'https://api.github.com/repos/zed-industries/zed/releases/latest',
+                'github_repo': 'TC999/zed-loc',
+                'github_api_url': 'https://api.github.com/repos/TC999/zed-loc/releases/latest',
                 'download_timeout': 300,
                 'retry_count': 3
             }

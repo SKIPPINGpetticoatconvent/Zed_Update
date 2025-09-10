@@ -719,7 +719,7 @@ class UpdaterGUI(QMainWindow):
             self.retry_spin.setValue(self.config.get_setting('retry_count', 3))
             self.use_proxy_cb.setChecked(self.config.get_setting('use_proxy', False))
             self.proxy_edit.setText(self.config.get_setting('proxy_url', ''))
-            self.github_repo_edit.setText(self.config.get_setting('github_repo', 'zed-industries/zed'))
+            self.github_repo_edit.setText(self.config.get_setting('github_repo', 'TC999/zed-loc'))
             self.github_api_edit.setText(self.config.get_setting('github_api_url', ''))
 
             log_level = self.config.get_setting('log_level', 'INFO')

@@ -121,7 +121,7 @@ D:\Vs\Zed_Update\
     "scheduled_days": [0, 1, 2, 3, 4],
     "show_notifications": true,
     "minimize_to_tray": true,
-    "github_repo": "zed-industries/zed",
+    "github_repo": "TC999/zed-loc",
     "download_timeout": 300
 }
 ```

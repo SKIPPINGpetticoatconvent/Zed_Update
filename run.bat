@@ -89,7 +89,7 @@ echo 5. 查看帮助 - 显示此帮助信息
 echo.
 echo 配置文件: config.json
 echo 日志文件: zed_updater.log
-echo 项目地址: https://github.com/zed-industries/zed
+echo 项目地址: https://github.com/TC999/zed-loc
 echo.
 pause
 goto menu
