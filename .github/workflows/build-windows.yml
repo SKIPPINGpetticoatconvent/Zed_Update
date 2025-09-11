@@ -109,6 +109,79 @@ jobs:
         run: |
           pyinstaller --clean ZedUpdater.spec
 
+      - name: Create additional GUI launchers
+        run: |
+          # Create console version for debugging
+          echo "# -*- mode: python ; coding: utf-8 -*-" > ZedUpdater-Console.spec
+          echo "import sys" >> ZedUpdater-Console.spec
+          echo "from pathlib import Path" >> ZedUpdater-Console.spec
+          echo "" >> ZedUpdater-Console.spec
+          echo "block_cipher = None" >> ZedUpdater-Console.spec
+          echo "" >> ZedUpdater-Console.spec
+          echo "a = Analysis(" >> ZedUpdater-Console.spec
+          echo "    ['main.py']," >> ZedUpdater-Console.spec
+          echo "    pathex=[]," >> ZedUpdater-Console.spec
+          echo "    binaries=[]," >> ZedUpdater-Console.spec
+          echo "    datas=[" >> ZedUpdater-Console.spec
+          echo "        ('config.example.json', '.')," >> ZedUpdater-Console.spec
+          echo "        ('gui_launcher.pyw', '.')," >> ZedUpdater-Console.spec
+          echo "        ('updater', 'updater')," >> ZedUpdater-Console.spec
+          echo "    ]," >> ZedUpdater-Console.spec
+          echo "    hiddenimports=[" >> ZedUpdater-Console.spec
+          echo "        'PyQt5.sip'," >> ZedUpdater-Console.spec
+          echo "        'PyQt5.QtCore'," >> ZedUpdater-Console.spec
+          echo "        'PyQt5.QtWidgets'," >> ZedUpdater-Console.spec
+          echo "        'PyQt5.QtGui'," >> ZedUpdater-Console.spec
+          echo "        'win32api'," >> ZedUpdater-Console.spec
+          echo "        'win32con'," >> ZedUpdater-Console.spec
+          echo "        'win32file'," >> ZedUpdater-Console.spec
+          echo "        'win32gui'," >> ZedUpdater-Console.spec
+          echo "        'win32process'," >> ZedUpdater-Console.spec
+          echo "        'pywintypes'," >> ZedUpdater-Console.spec
+          echo "        'psutil'," >> ZedUpdater-Console.spec
+          echo "        'schedule'," >> ZedUpdater-Console.spec
+          echo "        'requests'," >> ZedUpdater-Console.spec
+          echo "        'chardet'," >> ZedUpdater-Console.spec
+          echo "        'dateutil'," >> ZedUpdater-Console.spec
+          echo "        'ctypes'," >> ZedUpdater-Console.spec
+          echo "        'ctypes.wintypes'," >> ZedUpdater-Console.spec
+          echo "    ]," >> ZedUpdater-Console.spec
+          echo "    hookspath=[]," >> ZedUpdater-Console.spec
+          echo "    hooksconfig={}," >> ZedUpdater-Console.spec
+          echo "    runtime_hooks=[]," >> ZedUpdater-Console.spec
+          echo "    excludes=[]," >> ZedUpdater-Console.spec
+          echo "    win_no_prefer_redirects=False," >> ZedUpdater-Console.spec
+          echo "    win_private_assemblies=False," >> ZedUpdater-Console.spec
+          echo "    cipher=block_cipher," >> ZedUpdater-Console.spec
+          echo "    noarchive=False," >> ZedUpdater-Console.spec
+          echo ")" >> ZedUpdater-Console.spec
+          echo "" >> ZedUpdater-Console.spec
+          echo "pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)" >> ZedUpdater-Console.spec
+          echo "" >> ZedUpdater-Console.spec
+          echo "exe = EXE(" >> ZedUpdater-Console.spec
+          echo "    pyz," >> ZedUpdater-Console.spec
+          echo "    a.scripts," >> ZedUpdater-Console.spec
+          echo "    a.binaries," >> ZedUpdater-Console.spec
+          echo "    a.zipfiles," >> ZedUpdater-Console.spec
+          echo "    a.datas," >> ZedUpdater-Console.spec
+          echo "    []," >> ZedUpdater-Console.spec
+          echo "    name='ZedUpdater-Console'," >> ZedUpdater-Console.spec
+          echo "    debug=False," >> ZedUpdater-Console.spec
+          echo "    bootloader_ignore_signals=False," >> ZedUpdater-Console.spec
+          echo "    strip=False," >> ZedUpdater-Console.spec
+          echo "    upx=True," >> ZedUpdater-Console.spec
+          echo "    upx_exclude=[]," >> ZedUpdater-Console.spec
+          echo "    runtime_tmpdir=None," >> ZedUpdater-Console.spec
+          echo "    console=True," >> ZedUpdater-Console.spec
+          echo "    disable_windowed_traceback=False," >> ZedUpdater-Console.spec
+          echo "    argv_emulation=False," >> ZedUpdater-Console.spec
+          echo "    target_arch=None," >> ZedUpdater-Console.spec
+          echo "    codesign_identity=None," >> ZedUpdater-Console.spec
+          echo "    entitlements_file=None," >> ZedUpdater-Console.spec
+          echo ")" >> ZedUpdater-Console.spec
+
+          pyinstaller --clean ZedUpdater-Console.spec
+
       - name: Test executable
         run: |
           # Test GUI launch (should not hang in headless environment)
@@ -121,55 +194,124 @@ jobs:
           Get-ChildItem dist\ZedUpdater.exe | Format-List Name, Length, CreationTime
           echo "File size: $((Get-Item dist\ZedUpdater.exe).Length / 1MB) MB"
 
-      - name: Create portable package
+      - name: Create portable packages
         run: |
-          mkdir ZedUpdater-portable
-          copy dist\ZedUpdater.exe ZedUpdater-portable\
-          copy config.example.json ZedUpdater-portable\config.json
-          copy README.md ZedUpdater-portable\ -ErrorAction SilentlyContinue
-          copy LICENSE ZedUpdater-portable\ -ErrorAction SilentlyContinue
-          copy CHANGELOG.md ZedUpdater-portable\ -ErrorAction SilentlyContinue
-          copy QUICK_START.md ZedUpdater-portable\ -ErrorAction SilentlyContinue
+          # Create GUI-only portable package
+          mkdir ZedUpdater-GUI-Portable
+          copy dist\ZedUpdater.exe ZedUpdater-GUI-Portable\
+          copy config.example.json ZedUpdater-GUI-Portable\config.json
+          copy README.md ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy LICENSE ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy CHANGELOG.md ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy QUICK_START.md ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy gui_launcher.pyw ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy main.pyw ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy start_gui.bat ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          copy start_gui_silent.vbs ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
 
           # Create batch files for GUI usage (no console window)
-          echo "@echo off" > ZedUpdater-portable\start-gui.bat
-          echo "start /b ZedUpdater.exe --gui" >> ZedUpdater-portable\start-gui.bat
+          echo "@echo off" > ZedUpdater-GUI-Portable\start-gui.bat
+          echo "start /b ZedUpdater.exe --gui" >> ZedUpdater-GUI-Portable\start-gui.bat
 
-          echo "@echo off" > ZedUpdater-portable\start-gui-silent.bat
-          echo "ZedUpdater.exe --gui" >> ZedUpdater-portable\start-gui-silent.bat
+          echo "@echo off" > ZedUpdater-GUI-Portable\start-gui-silent.bat
+          echo "ZedUpdater.exe --gui" >> ZedUpdater-GUI-Portable\start-gui-silent.bat
 
           # Create VBS script for completely silent launch
-          echo "Set objShell = CreateObject(""WScript.Shell"")" > ZedUpdater-portable\start-gui-invisible.vbs
-          echo "objShell.Run ""ZedUpdater.exe --gui"", 0, False" >> ZedUpdater-portable\start-gui-invisible.vbs
-          echo "Set objShell = Nothing" >> ZedUpdater-portable\start-gui-invisible.vbs
+          echo "Set objShell = CreateObject(""WScript.Shell"")" > ZedUpdater-GUI-Portable\start-gui-invisible.vbs
+          echo "objShell.Run ""ZedUpdater.exe --gui"", 0, False" >> ZedUpdater-GUI-Portable\start-gui-invisible.vbs
+          echo "Set objShell = Nothing" >> ZedUpdater-GUI-Portable\start-gui-invisible.vbs
 
-          # Create batch file for console update with visible output
-          echo "@echo off" > ZedUpdater-portable\update-only.bat
-          echo "ZedUpdater.exe --update" >> ZedUpdater-portable\update-only.bat
-          echo "pause" >> ZedUpdater-portable\update-only.bat
+          # Create usage instructions for GUI package
+          echo "# ZedUpdater GUI版 使用说明" > ZedUpdater-GUI-Portable\使用说明.txt
+          echo "" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "## 启动方式:" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "1. ZedUpdater.exe            - 直接运行程序 (默认GUI模式，无控制台)" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "2. start-gui.bat             - 启动GUI界面 (推荐)" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "3. start-gui-silent.bat      - 启动GUI界面 (静默模式)" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "4. start-gui-invisible.vbs   - 完全隐藏启动GUI" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "5. gui_launcher.pyw          - Python启动器 (需要Python环境)" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "## 注意事项:" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "- 此版本为纯GUI版本，不会显示控制台窗口" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "- 如需查看详细日志，请查看 zed_updater.log 文件" >> ZedUpdater-GUI-Portable\使用说明.txt
 
-          # Create usage instructions
-          echo "# ZedUpdater 使用说明" > ZedUpdater-portable\使用说明.txt
-          echo "" >> ZedUpdater-portable\使用说明.txt
-          echo "## 启动方式:" >> ZedUpdater-portable\使用说明.txt
-          echo "1. start-gui.bat         - 启动GUI界面 (推荐)" >> ZedUpdater-portable\使用说明.txt
-          echo "2. start-gui-silent.bat  - 启动GUI界面 (无控制台窗口)" >> ZedUpdater-portable\使用说明.txt
-          echo "3. start-gui-invisible.vbs - 完全静默启动GUI" >> ZedUpdater-portable\使用说明.txt
-          echo "4. update-only.bat       - 仅执行更新检查 (显示控制台)" >> ZedUpdater-portable\使用说明.txt
-          echo "5. ZedUpdater.exe        - 直接运行程序 (默认GUI模式)" >> ZedUpdater-portable\使用说明.txt
+          # Create complete portable package (with console version)
+          mkdir ZedUpdater-Complete-Portable
+          copy dist\ZedUpdater.exe ZedUpdater-Complete-Portable\ZedUpdater-GUI.exe
+          copy dist\ZedUpdater-Console.exe ZedUpdater-Complete-Portable\ZedUpdater-Console.exe
+          copy config.example.json ZedUpdater-Complete-Portable\config.json
+          copy README.md ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy LICENSE ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy CHANGELOG.md ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy QUICK_START.md ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy gui_launcher.pyw ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy main.pyw ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy start_gui.bat ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          copy start_gui_silent.vbs ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
 
-      - name: Upload executable artifact
+          # Create batch files for complete package
+          echo "@echo off" > ZedUpdater-Complete-Portable\start-gui.bat
+          echo "start /b ZedUpdater-GUI.exe --gui" >> ZedUpdater-Complete-Portable\start-gui.bat
+
+          echo "@echo off" > ZedUpdater-Complete-Portable\start-gui-silent.bat
+          echo "ZedUpdater-GUI.exe --gui" >> ZedUpdater-Complete-Portable\start-gui-silent.bat
+
+          echo "Set objShell = CreateObject(""WScript.Shell"")" > ZedUpdater-Complete-Portable\start-gui-invisible.vbs
+          echo "objShell.Run ""ZedUpdater-GUI.exe --gui"", 0, False" >> ZedUpdater-Complete-Portable\start-gui-invisible.vbs
+          echo "Set objShell = Nothing" >> ZedUpdater-Complete-Portable\start-gui-invisible.vbs
+
+          echo "@echo off" > ZedUpdater-Complete-Portable\update-only.bat
+          echo "ZedUpdater-Console.exe --update" >> ZedUpdater-Complete-Portable\update-only.bat
+          echo "pause" >> ZedUpdater-Complete-Portable\update-only.bat
+
+          echo "@echo off" > ZedUpdater-Complete-Portable\debug-console.bat
+          echo "ZedUpdater-Console.exe --gui" >> ZedUpdater-Complete-Portable\debug-console.bat
+          echo "pause" >> ZedUpdater-Complete-Portable\debug-console.bat
+
+          # Create comprehensive usage instructions
+          echo "# ZedUpdater 完整版 使用说明" > ZedUpdater-Complete-Portable\使用说明.txt
+          echo "" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "## 文件说明:" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "- ZedUpdater-GUI.exe         - GUI版本 (无控制台窗口)" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "- ZedUpdater-Console.exe     - 控制台版本 (显示控制台窗口)" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "## 推荐启动方式:" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "1. start-gui.bat             - 启动GUI界面 (推荐)" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "2. start-gui-silent.bat      - 静默启动GUI界面" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "3. start-gui-invisible.vbs   - 完全隐藏启动GUI" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "4. update-only.bat           - 仅执行更新检查 (显示控制台)" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "5. debug-console.bat         - 调试模式 (显示控制台)" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "## 直接运行:" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "- ZedUpdater-GUI.exe         - 直接运行GUI版本" >> ZedUpdater-Complete-Portable\使用说明.txt
+          echo "- ZedUpdater-Console.exe     - 直接运行控制台版本" >> ZedUpdater-Complete-Portable\使用说明.txt
+
+      - name: Upload GUI executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-Single-File
+          name: ZedUpdater-Windows-GUI-Single-File
           path: dist/ZedUpdater.exe
           retention-days: 30
 
-      - name: Upload portable package
+      - name: Upload Console executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-Portable
-          path: ZedUpdater-portable/
+          name: ZedUpdater-Windows-Console-Single-File
+          path: dist/ZedUpdater-Console.exe
+          retention-days: 30
+
+      - name: Upload GUI portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-GUI-Portable
+          path: ZedUpdater-GUI-Portable/
+          retention-days: 30
+
+      - name: Upload complete portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-Complete-Portable
+          path: ZedUpdater-Complete-Portable/
           retention-days: 30
 
   release:
@@ -181,57 +323,117 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-        with:
-          name: ZedUpdater-Windows-Portable
-          path: ZedUpdater-Windows-Portable
 
-      - name: Create release archive
+      - name: Create release archives
         run: |
-          cd ZedUpdater-Windows-Portable
-          zip -r ../ZedUpdater-Windows-v${{ github.ref_name }}.zip .
+          # Create GUI-only package
+          cd ZedUpdater-Windows-GUI-Portable
+          zip -r ../ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip .
           cd ..
+
+          # Create complete package
+          cd ZedUpdater-Windows-Complete-Portable
+          zip -r ../ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip .
+          cd ..
+
+          # Create single files package
+          mkdir ZedUpdater-Single-Files
+          cp ZedUpdater-Windows-GUI-Single-File/ZedUpdater.exe ZedUpdater-Single-Files/ZedUpdater-GUI.exe
+          cp ZedUpdater-Windows-Console-Single-File/ZedUpdater-Console.exe ZedUpdater-Single-Files/ZedUpdater-Console.exe
+          zip -r ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip ZedUpdater-Single-Files/
 
       - name: Get release info
         id: release_info
         run: |
           echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           echo "release_name=ZedUpdater ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "is_prerelease=${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') || contains(github.ref, 'pre') }}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            # Extract changelog for this version
+            awk '/^## \[/{if(found) exit; if(/\[${{ github.ref_name }}\]/) found=1; next} found' CHANGELOG.md > current_changelog.txt || echo "更新日志请查看 CHANGELOG.md" > current_changelog.txt
+          else
+            echo "更新日志请查看提交历史" > current_changelog.txt
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ZedUpdater-Windows-v${{ github.ref_name }}.zip
+            ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip
+            ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip
+            ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip
           name: ${{ steps.release_info.outputs.release_name }}
           draft: false
-          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}
+          prerelease: ${{ steps.release_info.outputs.is_prerelease }}
           generate_release_notes: true
           body: |
-            ## ZedUpdater ${{ github.ref_name }}
+            ## 🎉 ZedUpdater ${{ github.ref_name }} 发布
 
-            ### Windows Single-File Executable
+            ### 📥 下载选项
 
-            **下载说明：**
-            - 下载 `ZedUpdater-Windows-v${{ github.ref_name }}.zip`
-            - 解压到任意目录
-            - 运行 `start-gui.bat` 启动图形界面
-            - 或运行 `update-only.bat` 仅执行更新检查
+            #### 🎯 推荐下载 (GUI版本)
+            **[ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip)**
+            - ✨ 纯GUI界面，无控制台窗口
+            - 📁 解压即用，包含所有必要文件
+            - 🚀 多种启动方式可选
 
-            **系统要求：**
-            - Windows 10/11 (x64)
-            - 无需安装 Python 环境
+            #### 🔧 完整版本 (GUI + 控制台)
+            **[ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip)**
+            - 📦 包含GUI版和控制台版
+            - 🐛 适合调试和高级用户
+            - 💻 支持命令行操作
 
-            **文件说明：**
-            - `ZedUpdater.exe` - 主程序（单文件，包含所有依赖，无控制台窗口）
-            - `config.json` - 配置文件模板
-            - `start-gui.bat` - 启动GUI界面 (推荐)
-            - `start-gui-silent.bat` - 静默启动GUI界面
-            - `start-gui-invisible.vbs` - 完全隐藏启动GUI
-            - `update-only.bat` - 仅执行更新检查 (显示控制台)
+            #### 💼 单文件版本
+            **[ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip)**
+            - 🎯 仅包含可执行文件
+            - 📋 需要自行配置
+            - 🏃 适合集成到其他项目
+
+            ### 🖥️ 系统要求
+            - **操作系统**: Windows 10/11 (x64)
+            - **依赖**: 无需安装 Python 环境
+            - **权限**: 无需管理员权限
+
+            ### 🚀 快速开始
+            1. 下载推荐的 GUI 版本
+            2. 解压到任意目录
+            3. 运行 `start-gui.bat` 或直接双击 `ZedUpdater.exe`
+            4. 首次运行会自动创建配置文件
+
+            ### 📋 启动方式说明
+
+            #### GUI版本包含:
+            - 🎯 `ZedUpdater.exe` - 直接运行 (无控制台)
+            - 🚀 `start-gui.bat` - 批处理启动 (推荐)
+            - 🔕 `start-gui-silent.bat` - 静默启动
+            - 👻 `start-gui-invisible.vbs` - 完全隐藏启动
+
+            #### 完整版本额外包含:
+            - 💻 `ZedUpdater-Console.exe` - 控制台版本
+            - 🔄 `update-only.bat` - 仅执行更新
+            - 🐛 `debug-console.bat` - 调试模式
+
+            ### 📝 配置说明
+            - `config.json` - 主配置文件
+            - `zed_updater.log` - 运行日志
             - `使用说明.txt` - 详细使用说明
 
-            构建信息：Python 3.11, PyInstaller, Windows Latest
+            ### 🔄 更新内容
+            $(cat current_changelog.txt 2>/dev/null || echo "请查看 [提交历史](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) 获取详细更新内容")
+
+            ### 🐛 问题反馈
+            - [报告问题](https://github.com/${{ github.repository }}/issues)
+            - [查看文档](https://github.com/${{ github.repository }}/blob/main/README.md)
+            - [使用指南](https://github.com/${{ github.repository }}/blob/main/QUICK_START.md)
+
+            ---
+            **构建信息**: Python 3.11 + PyInstaller + Windows Latest
+            **构建时间**: ${{ github.run_id }} - ${{ github.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
