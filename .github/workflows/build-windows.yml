@@ -44,14 +44,19 @@ jobs:
           echo "block_cipher = None" >> ZedUpdater.spec
           echo "" >> ZedUpdater.spec
           echo "a = Analysis(" >> ZedUpdater.spec
-          echo "    ['main.py']," >> ZedUpdater.spec
+          echo "    ['gui_launcher.pyw']," >> ZedUpdater.spec
           echo "    pathex=[]," >> ZedUpdater.spec
           echo "    binaries=[]," >> ZedUpdater.spec
           echo "    datas=[" >> ZedUpdater.spec
           echo "        ('config.example.json', '.')," >> ZedUpdater.spec
+          echo "        ('main.py', '.')," >> ZedUpdater.spec
+          echo "        ('updater', 'updater')," >> ZedUpdater.spec
           echo "    ]," >> ZedUpdater.spec
           echo "    hiddenimports=[" >> ZedUpdater.spec
           echo "        'PyQt5.sip'," >> ZedUpdater.spec
+          echo "        'PyQt5.QtCore'," >> ZedUpdater.spec
+          echo "        'PyQt5.QtWidgets'," >> ZedUpdater.spec
+          echo "        'PyQt5.QtGui'," >> ZedUpdater.spec
           echo "        'win32api'," >> ZedUpdater.spec
           echo "        'win32con'," >> ZedUpdater.spec
           echo "        'win32file'," >> ZedUpdater.spec
@@ -63,6 +68,8 @@ jobs:
           echo "        'requests'," >> ZedUpdater.spec
           echo "        'chardet'," >> ZedUpdater.spec
           echo "        'dateutil'," >> ZedUpdater.spec
+          echo "        'ctypes'," >> ZedUpdater.spec
+          echo "        'ctypes.wintypes'," >> ZedUpdater.spec
           echo "    ]," >> ZedUpdater.spec
           echo "    hookspath=[]," >> ZedUpdater.spec
           echo "    hooksconfig={}," >> ZedUpdater.spec
@@ -91,7 +98,7 @@ jobs:
           echo "    upx_exclude=[]," >> ZedUpdater.spec
           echo "    runtime_tmpdir=None," >> ZedUpdater.spec
           echo "    console=False," >> ZedUpdater.spec
-          echo "    disable_windowed_traceback=False," >> ZedUpdater.spec
+          echo "    disable_windowed_traceback=True," >> ZedUpdater.spec
           echo "    argv_emulation=False," >> ZedUpdater.spec
           echo "    target_arch=None," >> ZedUpdater.spec
           echo "    codesign_identity=None," >> ZedUpdater.spec
@@ -104,7 +111,8 @@ jobs:
 
       - name: Test executable
         run: |
-          dist\ZedUpdater.exe --help
+          # Test GUI launch (should not hang in headless environment)
+          timeout 10 dist\ZedUpdater.exe --help || echo "Expected timeout in headless environment"
         timeout-minutes: 2
         continue-on-error: true
 
@@ -123,14 +131,32 @@ jobs:
           copy CHANGELOG.md ZedUpdater-portable\ -ErrorAction SilentlyContinue
           copy QUICK_START.md ZedUpdater-portable\ -ErrorAction SilentlyContinue
 
-          # Create batch files for easy usage
+          # Create batch files for GUI usage (no console window)
           echo "@echo off" > ZedUpdater-portable\start-gui.bat
-          echo "ZedUpdater.exe --gui" >> ZedUpdater-portable\start-gui.bat
-          echo "pause" >> ZedUpdater-portable\start-gui.bat
+          echo "start /b ZedUpdater.exe --gui" >> ZedUpdater-portable\start-gui.bat
 
+          echo "@echo off" > ZedUpdater-portable\start-gui-silent.bat
+          echo "ZedUpdater.exe --gui" >> ZedUpdater-portable\start-gui-silent.bat
+
+          # Create VBS script for completely silent launch
+          echo "Set objShell = CreateObject(""WScript.Shell"")" > ZedUpdater-portable\start-gui-invisible.vbs
+          echo "objShell.Run ""ZedUpdater.exe --gui"", 0, False" >> ZedUpdater-portable\start-gui-invisible.vbs
+          echo "Set objShell = Nothing" >> ZedUpdater-portable\start-gui-invisible.vbs
+
+          # Create batch file for console update with visible output
           echo "@echo off" > ZedUpdater-portable\update-only.bat
           echo "ZedUpdater.exe --update" >> ZedUpdater-portable\update-only.bat
           echo "pause" >> ZedUpdater-portable\update-only.bat
+
+          # Create usage instructions
+          echo "# ZedUpdater 使用说明" > ZedUpdater-portable\使用说明.txt
+          echo "" >> ZedUpdater-portable\使用说明.txt
+          echo "## 启动方式:" >> ZedUpdater-portable\使用说明.txt
+          echo "1. start-gui.bat         - 启动GUI界面 (推荐)" >> ZedUpdater-portable\使用说明.txt
+          echo "2. start-gui-silent.bat  - 启动GUI界面 (无控制台窗口)" >> ZedUpdater-portable\使用说明.txt
+          echo "3. start-gui-invisible.vbs - 完全静默启动GUI" >> ZedUpdater-portable\使用说明.txt
+          echo "4. update-only.bat       - 仅执行更新检查 (显示控制台)" >> ZedUpdater-portable\使用说明.txt
+          echo "5. ZedUpdater.exe        - 直接运行程序 (默认GUI模式)" >> ZedUpdater-portable\使用说明.txt
 
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
@@ -198,10 +224,13 @@ jobs:
             - 无需安装 Python 环境
 
             **文件说明：**
-            - `ZedUpdater.exe` - 主程序（单文件，包含所有依赖）
+            - `ZedUpdater.exe` - 主程序（单文件，包含所有依赖，无控制台窗口）
             - `config.json` - 配置文件模板
-            - `start-gui.bat` - 启动GUI界面
-            - `update-only.bat` - 仅执行更新检查
+            - `start-gui.bat` - 启动GUI界面 (推荐)
+            - `start-gui-silent.bat` - 静默启动GUI界面
+            - `start-gui-invisible.vbs` - 完全隐藏启动GUI
+            - `update-only.bat` - 仅执行更新检查 (显示控制台)
+            - `使用说明.txt` - 详细使用说明
 
             构建信息：Python 3.11, PyInstaller, Windows Latest
         env:

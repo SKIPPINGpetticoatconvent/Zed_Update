@@ -29,7 +29,7 @@ echo ================================
 echo.
 echo 请选择运行模式:
 echo.
-echo [1] 启动图形界面 (推荐)
+echo [1] 启动图形界面 (无控制台窗口)
 echo [2] 仅检查并更新
 echo [3] 安装程序和依赖
 echo [4] 卸载程序
@@ -53,7 +53,13 @@ goto menu
 echo.
 echo 正在启动图形界面...
 set PYTHONIOENCODING=utf-8
-python main.py --gui
+if exist "gui_launcher.pyw" (
+    pythonw gui_launcher.pyw
+) else if exist "main.pyw" (
+    pythonw main.pyw
+) else (
+    pythonw main.py --gui
+)
 goto end
 
 :update
@@ -81,7 +87,7 @@ goto end
 echo.
 echo 使用说明:
 echo.
-echo 1. 图形界面模式 - 提供完整的配置和管理界面
+echo 1. 图形界面模式 - 提供完整的配置和管理界面 (无控制台窗口)
 echo 2. 命令行更新 - 仅执行检查和更新操作
 echo 3. 安装程序 - 首次使用时运行，安装依赖和配置
 echo 4. 卸载程序 - 完全移除程序和配置文件

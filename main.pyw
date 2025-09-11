@@ -19,28 +19,6 @@ from pathlib import Path
 import locale
 import codecs
 
-# 隐藏控制台窗口（仅在GUI模式下）
-def hide_console():
-    """隐藏控制台窗口"""
-    if sys.platform == 'win32':
-        try:
-            import ctypes
-            import ctypes.wintypes
-
-            # 获取控制台窗口句柄
-            kernel32 = ctypes.windll.kernel32
-            user32 = ctypes.windll.user32
-
-            # 获取当前控制台窗口
-            console_window = kernel32.GetConsoleWindow()
-
-            if console_window:
-                # SW_HIDE = 0, 隐藏窗口
-                user32.ShowWindow(console_window, 0)
-        except Exception as e:
-            # 如果隐藏失败，记录但不影响程序运行
-            pass
-
 # 确保标准输出使用UTF-8编码
 if sys.platform == 'win32':
     # Windows系统UTF-8兼容性设置
@@ -143,8 +121,7 @@ def main():
             # 仅执行更新
             app.run_console_update()
         elif sys.argv[1] == '--gui':
-            # 隐藏控制台窗口并运行GUI
-            hide_console()
+            # 运行GUI
             sys.exit(app.run_gui())
         elif sys.argv[1] == '--help':
             print("Zed Editor 自动更新程序")
@@ -155,8 +132,7 @@ def main():
             print("  python main.py --help   - 显示帮助信息")
             return
     else:
-        # 默认运行GUI，隐藏控制台窗口
-        hide_console()
+        # 默认运行GUI
         sys.exit(app.run_gui())
 
 if __name__ == "__main__":

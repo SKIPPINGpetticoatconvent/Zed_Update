@@ -48,12 +48,12 @@ jobs:
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          pyinstaller --onefile --windowed --name "ZedUpdater" --icon=icon.ico --add-data "config.example.json;." --hidden-import PyQt5.sip --hidden-import win32api --hidden-import win32con --hidden-import win32file --hidden-import win32gui --hidden-import win32process --collect-all PyQt5 main.py
+          pyinstaller --onefile --windowed --name "ZedUpdater" --icon=icon.ico --add-data "config.example.json;." --add-data "gui_launcher.pyw;." --hidden-import PyQt5.sip --hidden-import PyQt5.QtCore --hidden-import PyQt5.QtWidgets --hidden-import PyQt5.QtGui --hidden-import win32api --hidden-import win32con --hidden-import win32file --hidden-import win32gui --hidden-import win32process --hidden-import ctypes --hidden-import ctypes.wintypes --collect-all PyQt5 gui_launcher.pyw
 
       - name: Build with PyInstaller (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          pyinstaller --onefile --windowed --name "ZedUpdater" --add-data "config.example.json:." --hidden-import PyQt5.sip --collect-all PyQt5 main.py
+          pyinstaller --onefile --windowed --name "ZedUpdater" --add-data "config.example.json:." --add-data "gui_launcher.pyw:." --hidden-import PyQt5.sip --hidden-import PyQt5.QtCore --hidden-import PyQt5.QtWidgets --hidden-import PyQt5.QtGui --collect-all PyQt5 gui_launcher.pyw
 
       - name: Create portable package (Windows)
         if: matrix.os == 'windows-latest'
@@ -63,7 +63,20 @@ jobs:
           copy config.example.json ZedUpdater-portable-windows\config.json
           copy README.md ZedUpdater-portable-windows\
           copy LICENSE ZedUpdater-portable-windows\
-          echo "ZedUpdater.exe" > ZedUpdater-portable-windows\start.bat
+
+          echo "@echo off" > ZedUpdater-portable-windows\start-gui.bat
+          echo "start /b ZedUpdater.exe --gui" >> ZedUpdater-portable-windows\start-gui.bat
+
+          echo "@echo off" > ZedUpdater-portable-windows\start-gui-silent.bat
+          echo "ZedUpdater.exe --gui" >> ZedUpdater-portable-windows\start-gui-silent.bat
+
+          echo "Set objShell = CreateObject(\"WScript.Shell\")" > ZedUpdater-portable-windows\start-gui-invisible.vbs
+          echo "objShell.Run \"ZedUpdater.exe --gui\", 0, False" >> ZedUpdater-portable-windows\start-gui-invisible.vbs
+          echo "Set objShell = Nothing" >> ZedUpdater-portable-windows\start-gui-invisible.vbs
+
+          echo "@echo off" > ZedUpdater-portable-windows\update-only.bat
+          echo "ZedUpdater.exe --update" >> ZedUpdater-portable-windows\update-only.bat
+          echo "pause" >> ZedUpdater-portable-windows\update-only.bat
 
       - name: Create portable package (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -74,9 +87,15 @@ jobs:
           cp README.md ZedUpdater-portable-linux/
           cp LICENSE ZedUpdater-portable-linux/
           chmod +x ZedUpdater-portable-linux/ZedUpdater
-          echo '#!/bin/bash' > ZedUpdater-portable-linux/start.sh
-          echo './ZedUpdater' >> ZedUpdater-portable-linux/start.sh
-          chmod +x ZedUpdater-portable-linux/start.sh
+
+          echo '#!/bin/bash' > ZedUpdater-portable-linux/start-gui.sh
+          echo './ZedUpdater --gui' >> ZedUpdater-portable-linux/start-gui.sh
+          chmod +x ZedUpdater-portable-linux/start-gui.sh
+
+          echo '#!/bin/bash' > ZedUpdater-portable-linux/update-only.sh
+          echo './ZedUpdater --update' >> ZedUpdater-portable-linux/update-only.sh
+          echo 'read -p "Press Enter to continue..."' >> ZedUpdater-portable-linux/update-only.sh
+          chmod +x ZedUpdater-portable-linux/update-only.sh
 
       - name: Create portable package (macOS)
         if: matrix.os == 'macos-latest'
@@ -87,9 +106,15 @@ jobs:
           cp README.md ZedUpdater-portable-macos/
           cp LICENSE ZedUpdater-portable-macos/
           chmod +x ZedUpdater-portable-macos/ZedUpdater
-          echo '#!/bin/bash' > ZedUpdater-portable-macos/start.sh
-          echo './ZedUpdater' >> ZedUpdater-portable-macos/start.sh
-          chmod +x ZedUpdater-portable-macos/start.sh
+
+          echo '#!/bin/bash' > ZedUpdater-portable-macos/start-gui.sh
+          echo './ZedUpdater --gui' >> ZedUpdater-portable-macos/start-gui.sh
+          chmod +x ZedUpdater-portable-macos/start-gui.sh
+
+          echo '#!/bin/bash' > ZedUpdater-portable-macos/update-only.sh
+          echo './ZedUpdater --update' >> ZedUpdater-portable-macos/update-only.sh
+          echo 'read -p "Press Enter to continue..."' >> ZedUpdater-portable-macos/update-only.sh
+          chmod +x ZedUpdater-portable-macos/update-only.sh
 
       - name: Archive portable package (Windows)
         if: matrix.os == 'windows-latest'
