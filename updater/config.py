@@ -49,6 +49,7 @@ class Config:
         'check_on_startup': True,
         'auto_download': True,
         'auto_install': False,  # 需要用户确认
+        'force_download_latest': True,  # 强制下载最新版本，不进行版本检查
 
         # 启动设置
         'auto_start_after_update': True,

@@ -78,16 +78,24 @@ class VersionCheckWorker(QThread):
         try:
             current_version = self.updater.get_current_version()
             latest_info = self.updater.get_latest_version_info()
+            config = self.updater.config
+            force_download = config.get_setting('force_download_latest', True)
 
-            if latest_info and current_version:
-                has_update = self.updater.compare_versions(current_version, latest_info['version']) < 0
+            if latest_info:
                 version_data = {
-                    'current': current_version,
+                    'current': current_version or '未知',
                     'latest': latest_info['version'],
                     'download_url': latest_info.get('download_url'),
                     'release_notes': latest_info.get('body', '')
                 }
-                self.version_checked.emit(has_update, version_data)
+
+                if force_download:
+                    # 强制下载模式：始终允许下载最新版本
+                    self.version_checked.emit(True, version_data)
+                else:
+                    # 传统模式：只有检测到更新时才允许下载
+                    has_update = current_version and self.updater.compare_versions(current_version, latest_info['version']) < 0
+                    self.version_checked.emit(has_update, version_data)
             else:
                 self.version_checked.emit(False, {
                     'current': current_version or '未知',
@@ -236,9 +244,11 @@ class UpdaterGUI(QMainWindow):
         self.check_button.clicked.connect(self.check_for_updates)
         button_layout.addWidget(self.check_button)
 
-        self.update_button = QPushButton("立即更新")
+        self.update_button = QPushButton("下载最新版本")
         self.update_button.clicked.connect(self.start_update)
-        self.update_button.setEnabled(False)
+        # 根据配置决定初始状态
+        force_download = self.config.get_setting('force_download_latest', True)
+        self.update_button.setEnabled(force_download)
         button_layout.addWidget(self.update_button)
 
         self.start_zed_button = QPushButton("启动 Zed")
@@ -335,6 +345,9 @@ class UpdaterGUI(QMainWindow):
 
         self.auto_start_cb = QCheckBox("更新后自动启动Zed")
         auto_layout.addWidget(self.auto_start_cb, 5, 0, 1, 2)
+
+        self.force_download_cb = QCheckBox("总是下载最新版本(无需版本检查)")
+        auto_layout.addWidget(self.force_download_cb, 6, 0, 1, 2)
 
         scroll_area.addWidget(auto_group)
 
@@ -690,6 +703,7 @@ class UpdaterGUI(QMainWindow):
             self.auto_download_cb.setChecked(self.config.get_setting('auto_download', True))
             self.auto_install_cb.setChecked(self.config.get_setting('auto_install', False))
             self.auto_start_cb.setChecked(self.config.get_setting('auto_start_after_update', True))
+            self.force_download_cb.setChecked(self.config.get_setting('force_download_latest', True))
 
             # 备份设置
             self.backup_enabled_cb.setChecked(self.config.get_setting('backup_enabled', True))
@@ -744,6 +758,7 @@ class UpdaterGUI(QMainWindow):
                 'auto_download': self.auto_download_cb.isChecked(),
                 'auto_install': self.auto_install_cb.isChecked(),
                 'auto_start_after_update': self.auto_start_cb.isChecked(),
+                'force_download_latest': self.force_download_cb.isChecked(),
                 'backup_enabled': self.backup_enabled_cb.isChecked(),
                 'backup_count': self.backup_count_spin.value(),
                 'show_notifications': self.show_notifications_cb.isChecked(),
@@ -862,23 +877,40 @@ class UpdaterGUI(QMainWindow):
             # 更新最后检查时间
             self.last_check_label.setText(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-            if has_update:
+            # 根据配置和检查结果决定是否启用更新按钮
+            force_download = self.config.get_setting('force_download_latest', True)
+            if force_download or has_update:
                 self.update_button.setEnabled(True)
+            else:
+                self.update_button.setEnabled(False)
+
+            if has_update and version_data.get('latest') != '无法获取':
                 if self.config.get_setting('show_notifications', True):
                     if self.tray_icon:
                         self.tray_icon.showMessage(
-                            "Zed更新可用",
-                            f"发现新版本: {version_data['latest']}",
+                            "Zed更新可用" if not force_download else "Zed最新版本可用",
+                            f"{'发现新版本' if not force_download else '最新版本'}: {version_data['latest']}",
                             QSystemTrayIcon.Information,
                             5000
                         )
-                QMessageBox.information(
-                    self, "更新可用",
-                    f"发现新版本: {version_data['latest']}\n当前版本: {version_data['current']}"
-                )
+
+                if force_download:
+                    QMessageBox.information(
+                        self, "版本信息",
+                        f"最新版本: {version_data['latest']}\n当前版本: {version_data['current']}\n\n点击'下载最新版本'获取最新版本"
+                    )
+                else:
+                    QMessageBox.information(
+                        self, "更新可用",
+                        f"发现新版本: {version_data['latest']}\n当前版本: {version_data['current']}"
+                    )
+            elif version_data.get('latest') != '无法获取':
+                if force_download:
+                    QMessageBox.information(self, "检查完成", "版本信息已更新，您可以点击'下载最新版本'获取最新版本")
+                else:
+                    QMessageBox.information(self, "无更新", "您已使用最新版本")
             else:
-                self.update_button.setEnabled(False)
-                QMessageBox.information(self, "无更新", "您已使用最新版本")
+                QMessageBox.warning(self, "检查失败", "无法获取版本信息")
 
         except Exception as e:
             logger.error(f"处理版本检查结果失败: {e}")
@@ -917,7 +949,8 @@ class UpdaterGUI(QMainWindow):
             self.progress_group.hide()
 
             # 恢复按钮状态
-            self.update_button.setEnabled(False)
+            force_download = self.config.get_setting('force_download_latest', True)
+            self.update_button.setEnabled(force_download)
             self.check_button.setEnabled(True)
 
             if success:
