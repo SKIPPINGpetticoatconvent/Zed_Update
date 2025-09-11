@@ -149,19 +149,24 @@ jobs:
           echo "block_cipher = None" >> ZedUpdater.spec
           echo "" >> ZedUpdater.spec
           echo "a = Analysis(" >> ZedUpdater.spec
-          echo "    ['main.pyw']," >> ZedUpdater.spec
+          echo "    ['gui_launcher.pyw']," >> ZedUpdater.spec
           echo "    pathex=[]," >> ZedUpdater.spec
           echo "    binaries=[]," >> ZedUpdater.spec
           echo "    datas=[" >> ZedUpdater.spec
           echo "        ('config.example.json', '.')," >> ZedUpdater.spec
           echo "        ('main.py', '.')," >> ZedUpdater.spec
           echo "        ('updater', 'updater')," >> ZedUpdater.spec
+          echo "        ('README.md', '.')," >> ZedUpdater.spec
+          echo "        ('LICENSE', '.')," >> ZedUpdater.spec
+          echo "        ('CHANGELOG.md', '.')," >> ZedUpdater.spec
+          echo "        ('QUICK_START.md', '.')," >> ZedUpdater.spec
           echo "    ]," >> ZedUpdater.spec
           echo "    hiddenimports=[" >> ZedUpdater.spec
           echo "        'PyQt5.sip'," >> ZedUpdater.spec
           echo "        'PyQt5.QtCore'," >> ZedUpdater.spec
           echo "        'PyQt5.QtWidgets'," >> ZedUpdater.spec
           echo "        'PyQt5.QtGui'," >> ZedUpdater.spec
+          echo "        'PyQt5.Qt'," >> ZedUpdater.spec
           echo "        'win32api'," >> ZedUpdater.spec
           echo "        'win32con'," >> ZedUpdater.spec
           echo "        'win32file'," >> ZedUpdater.spec
@@ -175,11 +180,32 @@ jobs:
           echo "        'dateutil'," >> ZedUpdater.spec
           echo "        'ctypes'," >> ZedUpdater.spec
           echo "        'ctypes.wintypes'," >> ZedUpdater.spec
+          echo "        'threading'," >> ZedUpdater.spec
+          echo "        'concurrent.futures'," >> ZedUpdater.spec
+          echo "        'json'," >> ZedUpdater.spec
+          echo "        'logging'," >> ZedUpdater.spec
+          echo "        'pathlib'," >> ZedUpdater.spec
+          echo "        'subprocess'," >> ZedUpdater.spec
+          echo "        'tempfile'," >> ZedUpdater.spec
+          echo "        'zipfile'," >> ZedUpdater.spec
+          echo "        'shutil'," >> ZedUpdater.spec
+          echo "        'hashlib'," >> ZedUpdater.spec
+          echo "        'socket'," >> ZedUpdater.spec
+          echo "        'ssl'," >> ZedUpdater.spec
+          echo "        'certifi'," >> ZedUpdater.spec
+          echo "        'encodings'," >> ZedUpdater.spec
+          echo "        'encodings.utf_8'," >> ZedUpdater.spec
+          echo "        'encodings.cp1252'," >> ZedUpdater.spec
+          echo "        'encodings.ascii'," >> ZedUpdater.spec
+          echo "        'locale'," >> ZedUpdater.spec
+          echo "        'codecs'," >> ZedUpdater.spec
+          echo "        'win32com'," >> ZedUpdater.spec
+          echo "        'win32com.client'," >> ZedUpdater.spec
           echo "    ]," >> ZedUpdater.spec
           echo "    hookspath=[]," >> ZedUpdater.spec
           echo "    hooksconfig={}," >> ZedUpdater.spec
           echo "    runtime_hooks=[]," >> ZedUpdater.spec
-          echo "    excludes=[]," >> ZedUpdater.spec
+          echo "    excludes=['tkinter', 'matplotlib', 'numpy', 'pandas', 'scipy', 'IPython', 'jupyter', 'notebook', 'test', 'tests', 'unittest', 'doctest']," >> ZedUpdater.spec
           echo "    win_no_prefer_redirects=False," >> ZedUpdater.spec
           echo "    win_private_assemblies=False," >> ZedUpdater.spec
           echo "    cipher=block_cipher," >> ZedUpdater.spec

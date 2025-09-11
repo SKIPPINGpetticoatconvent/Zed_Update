@@ -314,11 +314,63 @@ class ZedUpdater:
                 logger.warning(f"请求失败，重试 {attempt + 1}/{max_retries}，等待 {wait_time:.1f}s: {e}")
                 time.sleep(wait_time)
 
+    def _safe_filename_from_url(self, url: str) -> str:
+        """从URL生成安全的文件名
+
+        处理特殊字符、路径分隔符和潜在的路径遍历尝试
+        """
+        try:
+            from urllib.parse import urlparse, unquote
+            import re
+
+            # 解析URL并获取路径部分
+            parsed_url = urlparse(url)
+            path = unquote(parsed_url.path)
+
+            # 获取基本文件名 (最后一部分)
+            filename = os.path.basename(path)
+
+            # 如果URL没有有效的文件名部分，使用域名加时间戳
+            if not filename or filename == "/" or "." not in filename:
+                import datetime
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                domain = parsed_url.netloc.split(':')[0]  # 移除端口号
+                filename = f"{domain}_{timestamp}.zip"
+
+            # 删除所有不安全字符，只保留字母、数字、下划线、点和连字符
+            filename = re.sub(r'[^\w\-\.]', '_', filename)
+
+            # 确保文件名不以点开头（防止隐藏文件）
+            filename = filename.lstrip('.')
+
+            # 如果文件名为空，使用默认名称
+            if not filename:
+                import datetime
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"download_{timestamp}.zip"
+
+            # 限制文件名长度
+            if len(filename) > 100:
+                name, ext = os.path.splitext(filename)
+                filename = name[:95] + ext
+
+            return filename
+
+        except Exception as e:
+            logger.error(f"生成安全文件名时出错: {e}")
+            # 出错时返回带时间戳的默认文件名
+            import datetime
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            return f"zed_update_{timestamp}.zip"
+
     def download_update(self, progress_callback=None) -> Optional[Path]:
         """下载更新文件"""
         if not self.download_url:
             logger.error("没有可下载的URL")
             return None
+
+        # 记录开始下载的详细信息
+        logger.info(f"开始下载更新: URL={self.download_url}")
 
         try:
             # 创建临时下载目录
@@ -326,11 +378,21 @@ class ZedUpdater:
             temp_dir.mkdir(parents=True, exist_ok=True)
 
             # 确定安全的文件名
-            filename = self._safe_filename_from_url(self.download_url)
-            if not filename.endswith(('.exe', '.zip')):
-                filename += '.zip'  # 默认使用zip扩展名
+            try:
+                filename = self._safe_filename_from_url(self.download_url)
+                if not filename.endswith(('.exe', '.zip')):
+                    filename += '.zip'  # 默认使用zip扩展名
+                logger.info(f"处理后的文件名: {filename}")
+            except Exception as e:
+                logger.error(f"生成文件名时出错: {e}")
+                # 使用默认文件名作为备选
+                import datetime
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"zed_update_{timestamp}.zip"
+                logger.info(f"使用备用文件名: {filename}")
 
             download_path = temp_dir / filename
+            logger.info(f"下载路径: {download_path}")
 
             # 设置代理
             proxies = None
@@ -345,40 +407,120 @@ class ZedUpdater:
             logger.info(f"开始下载: {self.download_url}")
 
             # 使用重试机制获取响应
-            response = self._retry_request(self.download_url, max_retries=retry_count,
-                                          backoff_factor=1.5, progress_callback=progress_callback,
-                                          proxies=proxies, timeout=timeout)
+            try:
+                response = self._retry_request(self.download_url, max_retries=retry_count,
+                                              backoff_factor=1.5, progress_callback=progress_callback,
+                                              proxies=proxies, timeout=timeout)
+
+                if response is None:
+                    logger.error("重试请求后未能获取有效响应")
+                    return None
+
+                if response.status_code != 200:
+                    logger.error(f"服务器响应错误: HTTP {response.status_code}")
+                    return None
+
+                logger.info(f"请求成功: 状态码={response.status_code}")
+
+            except Exception as e:
+                logger.error(f"请求处理失败: {e}")
+                return None
 
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
+            logger.info(f"文件总大小: {total_size} 字节")
 
-            with open(download_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded += len(chunk)
+            try:
+                with open(download_path, 'wb') as f:
+                    chunk_size = 8192
+                    logger.info(f"开始写入文件，块大小: {chunk_size} 字节")
+                    for chunk in response.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
 
-                        if progress_callback and total_size > 0:
-                            progress = (downloaded / total_size) * 100
-                            progress_callback(progress)
+                            if progress_callback and total_size > 0:
+                                progress = (downloaded / total_size) * 100
+                                progress_callback(progress)
 
-            # 验证下载的文件大小
-            if total_size > 0 and download_path.stat().st_size != total_size:
-                logger.error("下载文件大小不匹配，可能不完整")
-                download_path.unlink()
+                                # 每10%记录一次进度
+                                if int(progress) % 10 == 0 and int(progress) > 0:
+                                    logger.info(f"下载进度: {int(progress)}% ({downloaded}/{total_size} 字节)")
+            except Exception as e:
+                logger.error(f"写入文件时出错: {e}")
+                # 清理可能损坏的文件
+                if download_path.exists():
+                    try:
+                        download_path.unlink()
+                        logger.info("已删除可能损坏的下载文件")
+                    except:
+                        pass
                 return None
 
-            logger.info(f"下载完成: {download_path} ({downloaded} bytes)")
+            # 验证下载的文件大小
+            try:
+                actual_size = download_path.stat().st_size
+                logger.info(f"验证文件大小: 预期={total_size}, 实际={actual_size}")
+
+                if total_size > 0 and actual_size != total_size:
+                    logger.error(f"下载文件大小不匹配，可能不完整: 预期={total_size}, 实际={actual_size}")
+                    download_path.unlink()
+                    return None
+
+                # 基本文件有效性检查
+                if actual_size == 0:
+                    logger.error("下载的文件大小为0，文件无效")
+                    download_path.unlink()
+                    return None
+
+                # 验证文件是否是有效的二进制文件
+                with open(download_path, 'rb') as f:
+                    magic_bytes = f.read(4)
+                    # ZIP 文件头: PK\x03\x04 或 exe文件头: MZ
+                    is_valid = (magic_bytes.startswith(b'PK\x03\x04') or magic_bytes.startswith(b'MZ'))
+                    if not is_valid:
+                        logger.error(f"下载的文件不是有效的ZIP或EXE文件 (magic bytes: {magic_bytes.hex()})")
+                        download_path.unlink()
+                        return None
+            except Exception as e:
+                logger.error(f"验证文件时出错: {e}")
+                if download_path.exists():
+                    try:
+                        download_path.unlink()
+                    except:
+                        pass
+                return None
+
+            logger.info(f"下载完成并验证通过: {download_path} ({downloaded} bytes)")
             return download_path
 
+        except requests.exceptions.ConnectTimeout as e:
+            logger.error(f"连接超时: {e}")
+            return None
+        except requests.exceptions.ReadTimeout as e:
+            logger.error(f"读取超时: {e}")
+            return None
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"连接错误 (可能是网络问题): {e}")
+            return None
         except requests.exceptions.RequestException as e:
             logger.error(f"网络请求失败: {e}")
             return None
         except OSError as e:
-            logger.error(f"文件系统错误: {e}")
+            logger.error(f"文件系统错误: {str(e)}")
+            # 记录详细错误类型
+            import errno
+            if hasattr(e, 'errno'):
+                error_name = errno.errorcode.get(e.errno, "未知错误码")
+                logger.error(f"OS错误详情: {error_name} (错误码 {e.errno})")
+            return None
+        except MemoryError:
+            logger.error("内存不足错误")
             return None
         except Exception as e:
             logger.error(f"下载过程中发生意外错误: {e}")
+            import traceback
+            logger.error(f"异常堆栈: {traceback.format_exc()}")
             return None
 
     def create_backup(self) -> bool:
@@ -449,14 +591,27 @@ class ZedUpdater:
 
     def install_update(self, download_path: Path) -> bool:
         """安装更新"""
+        if download_path is None or not download_path.exists():
+            logger.error("无效的下载路径，无法安装更新")
+            return False
+
+        logger.info(f"开始安装更新: {download_path}")
+
         try:
             zed_path = Path(self.config.get_setting('zed_install_path'))
+            logger.info(f"目标安装路径: {zed_path}")
+
+            # 检查目标路径是否有效
+            if not zed_path.parent.exists():
+                logger.error(f"目标目录不存在: {zed_path.parent}")
+                return False
 
             # 停止正在运行的Zed进程
             self._stop_zed_processes()
 
             # 创建备份
-            if not self.create_backup():
+            backup_success = self.create_backup()
+            if not backup_success:
                 logger.warning("备份失败，但继续安装")
 
             # 等待一段时间确保进程完全停止
@@ -464,38 +619,92 @@ class ZedUpdater:
 
             # 如果下载的是zip文件，需要解压
             if download_path.suffix.lower() == '.zip':
+                logger.info("检测到ZIP文件，开始解压")
                 extracted_exe = self._extract_exe_from_zip(download_path)
                 if not extracted_exe:
+                    logger.error("无法从ZIP文件中提取可执行文件")
                     return False
                 install_source = extracted_exe
+                logger.info(f"成功解压出可执行文件: {install_source}")
             else:
                 install_source = download_path
+                logger.info(f"直接使用下载的可执行文件: {install_source}")
+
+            # 验证文件是否是可执行文件
+            try:
+                with open(install_source, 'rb') as f:
+                    header = f.read(2)
+                    if header != b'MZ':  # DOS MZ头
+                        logger.error(f"提取的文件不是有效的Windows可执行文件 (header: {header.hex()})")
+                        return False
+            except Exception as e:
+                logger.error(f"验证可执行文件时出错: {e}")
+                return False
 
             # 替换文件
-            if zed_path.exists():
-                # 先移动到临时位置
-                temp_old = zed_path.with_suffix('.exe.old')
-                if temp_old.exists():
-                    temp_old.unlink()
-                zed_path.rename(temp_old)
+            temp_old = None
+            try:
+                if zed_path.exists():
+                    logger.info(f"目标文件已存在，准备备份: {zed_path}")
+                    # 先移动到临时位置
+                    temp_old = zed_path.with_suffix('.exe.old')
+                    if temp_old.exists():
+                        logger.info(f"删除已存在的旧备份: {temp_old}")
+                        temp_old.unlink()
+                    logger.info(f"将当前文件重命名为: {temp_old}")
+                    zed_path.rename(temp_old)
+                else:
+                    logger.info(f"目标文件不存在，将直接创建: {zed_path}")
 
-            # 复制新文件
-            shutil.copy2(install_source, zed_path)
+                # 复制新文件
+                logger.info(f"复制新文件: {install_source} -> {zed_path}")
+                shutil.copy2(install_source, zed_path)
+
+                # 验证复制后的文件
+                if not zed_path.exists():
+                    logger.error("复制后的文件不存在")
+                    raise Exception("文件复制失败")
+
+                file_size = zed_path.stat().st_size
+                source_size = install_source.stat().st_size
+                if file_size != source_size:
+                    logger.error(f"复制后的文件大小不匹配: 源={source_size}, 目标={file_size}")
+                    raise Exception("文件复制不完整")
+
+                logger.info(f"文件复制成功: 大小={file_size} 字节")
+            except Exception as e:
+                logger.error(f"替换文件过程中出错: {e}")
+                # 尝试恢复原文件
+                if temp_old and temp_old.exists() and not zed_path.exists():
+                    try:
+                        logger.info("尝试恢复原文件")
+                        temp_old.rename(zed_path)
+                    except Exception as restore_e:
+                        logger.error(f"恢复原文件失败: {restore_e}")
+                return False
 
             # 删除临时文件
-            if zed_path.with_suffix('.exe.old').exists():
-                zed_path.with_suffix('.exe.old').unlink()
+            try:
+                if zed_path.with_suffix('.exe.old').exists():
+                    logger.info(f"删除临时备份文件: {zed_path.with_suffix('.exe.old')}")
+                    zed_path.with_suffix('.exe.old').unlink()
+            except Exception as e:
+                logger.warning(f"清理临时文件失败 (不影响更新结果): {e}")
 
             # 更新配置中的版本信息
-            if self.latest_version:
-                self.config.set_setting('current_version', self.latest_version)
-                self.config.set_setting('last_update_time', datetime.now().isoformat())
+            try:
+                if self.latest_version:
+                    logger.info(f"更新配置中的版本信息: {self.latest_version}")
+                    self.config.set_setting('current_version', self.latest_version)
+                    self.config.set_setting('last_update_time', datetime.now().isoformat())
+            except Exception as e:
+                logger.warning(f"更新配置信息失败 (不影响更新结果): {e}")
 
             logger.info(f"更新安装成功: {zed_path}")
             return True
 
-        except Exception as e:
-            logger.error(f"安装更新失败: {e}")
+        except PermissionError as e:
+            logger.error(f"安装更新时权限错误 (文件可能被占用): {e}")
             # 尝试恢复
             try:
                 temp_old = Path(self.config.get_setting('zed_install_path')).with_suffix('.exe.old')
@@ -507,7 +716,41 @@ class ZedUpdater:
                     logger.info("已恢复原文件")
             except Exception as restore_e:
                 logger.error(f"恢复原文件失败: {restore_e}")
-
+            return False
+        except OSError as e:
+            logger.error(f"安装更新时系统错误: {e}")
+            # 记录更详细的错误信息
+            import errno
+            if hasattr(e, 'errno'):
+                error_name = errno.errorcode.get(e.errno, "未知错误码")
+                logger.error(f"OS错误详情: {error_name} (错误码 {e.errno})")
+            # 尝试恢复
+            try:
+                temp_old = Path(self.config.get_setting('zed_install_path')).with_suffix('.exe.old')
+                if temp_old.exists():
+                    zed_path = Path(self.config.get_setting('zed_install_path'))
+                    if zed_path.exists():
+                        zed_path.unlink()
+                    temp_old.rename(zed_path)
+                    logger.info("已恢复原文件")
+            except Exception as restore_e:
+                logger.error(f"恢复原文件失败: {restore_e}")
+            return False
+        except Exception as e:
+            logger.error(f"安装更新失败: {e}")
+            import traceback
+            logger.error(f"异常堆栈: {traceback.format_exc()}")
+            # 尝试恢复
+            try:
+                temp_old = Path(self.config.get_setting('zed_install_path')).with_suffix('.exe.old')
+                if temp_old.exists():
+                    zed_path = Path(self.config.get_setting('zed_install_path'))
+                    if zed_path.exists():
+                        zed_path.unlink()
+                    temp_old.rename(zed_path)
+                    logger.info("已恢复原文件")
+            except Exception as restore_e:
+                logger.error(f"恢复原文件失败: {restore_e}")
             return False
 
     def _extract_exe_from_zip(self, zip_path: Path) -> Optional[Path]:
