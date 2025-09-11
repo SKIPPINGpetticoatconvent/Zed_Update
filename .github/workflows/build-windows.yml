@@ -7,11 +7,98 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Version bump type"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      create_release:
+        description: "Create release after build"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      should_release: ${{ steps.version.outputs.should_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get current version and generate new version
+        id: version
+        run: |
+          # 获取当前最新的标签版本
+          LATEST_TAG=$(git tag -l "v*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            # 如果没有标签，从 v1.0.0 开始
+            LATEST_TAG="v1.0.0"
+            CURRENT_VERSION="1.0.0"
+          else
+            CURRENT_VERSION=${LATEST_TAG#v}
+          fi
+
+          echo "Current version: $CURRENT_VERSION"
+
+          # 解析版本号
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=${VERSION_PARTS[2]}
+
+          # 根据触发类型决定是否需要发布
+          SHOULD_RELEASE="false"
+          VERSION_TYPE="${{ github.event.inputs.version_type || 'patch' }}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
+            if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
+              SHOULD_RELEASE="true"
+
+              # 计算新版本号
+              case $VERSION_TYPE in
+                major)
+                  MAJOR=$((MAJOR + 1))
+                  MINOR=0
+                  PATCH=0
+                  ;;
+                minor)
+                  MINOR=$((MINOR + 1))
+                  PATCH=0
+                  ;;
+                patch)
+                  PATCH=$((PATCH + 1))
+                  ;;
+              esac
+            fi
+          fi
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          NEW_TAG="v$NEW_VERSION"
+
+          echo "New version: $NEW_VERSION"
+          echo "New tag: $NEW_TAG"
+          echo "Should release: $SHOULD_RELEASE"
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+
   build-windows:
     runs-on: windows-latest
-
+    needs: version
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,6 +121,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+
+      - name: Update version in files
+        run: |
+          $version = "${{ needs.version.outputs.version }}"
+
+          # 更新主程序中的版本号（如果存在）
+          if (Test-Path "main.py") {
+            (Get-Content "main.py") -replace 'setApplicationVersion\(".*?"\)', "setApplicationVersion(`"$version`")" | Set-Content "main.py"
+          }
+
+          # 创建或更新版本文件
+          @"
+          VERSION = "$version"
+          BUILD_DATE = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+          BUILD_COMMIT = "${{ github.sha }}"
+          "@ | Out-File -FilePath "version.py" -Encoding UTF8
+
+          echo "Updated version to: $version"
 
       - name: Create PyInstaller spec file
         run: |
@@ -92,6 +197,7 @@ jobs:
           echo "    []," >> ZedUpdater.spec
           echo "    name='ZedUpdater'," >> ZedUpdater.spec
           echo "    debug=False," >> ZedUpdater.spec
+          echo "    version_info=('${{ needs.version.outputs.version }}', '${{ needs.version.outputs.version }}', 'ZedUpdater', 'Zed Editor Auto Updater')," >> ZedUpdater.spec
           echo "    bootloader_ignore_signals=False," >> ZedUpdater.spec
           echo "    strip=False," >> ZedUpdater.spec
           echo "    upx=True," >> ZedUpdater.spec
@@ -167,6 +273,7 @@ jobs:
           echo "    []," >> ZedUpdater-Console.spec
           echo "    name='ZedUpdater-Console'," >> ZedUpdater-Console.spec
           echo "    debug=False," >> ZedUpdater-Console.spec
+          echo "    version_info=('${{ needs.version.outputs.version }}', '${{ needs.version.outputs.version }}', 'ZedUpdater Console', 'Zed Editor Auto Updater Console')," >> ZedUpdater-Console.spec
           echo "    bootloader_ignore_signals=False," >> ZedUpdater-Console.spec
           echo "    strip=False," >> ZedUpdater-Console.spec
           echo "    upx=True," >> ZedUpdater-Console.spec
@@ -315,13 +422,24 @@ jobs:
           retention-days: 30
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-windows
+    if: needs.version.outputs.should_release == 'true' || github.event.inputs.create_release == 'true'
+    needs: [version, build-windows]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 创建并推送新标签
+          git tag -a "${{ needs.version.outputs.tag }}" -m "Release ${{ needs.version.outputs.tag }}"
+          git push origin "${{ needs.version.outputs.tag }}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -330,67 +448,81 @@ jobs:
         run: |
           # Create GUI-only package
           cd ZedUpdater-Windows-GUI-Portable
-          zip -r ../ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip .
+          zip -r ../ZedUpdater-Windows-GUI-v${{ needs.version.outputs.tag }}.zip .
           cd ..
 
           # Create complete package
           cd ZedUpdater-Windows-Complete-Portable
-          zip -r ../ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip .
+          zip -r ../ZedUpdater-Windows-Complete-v${{ needs.version.outputs.tag }}.zip .
           cd ..
 
           # Create single files package
           mkdir ZedUpdater-Single-Files
           cp ZedUpdater-Windows-GUI-Single-File/ZedUpdater.exe ZedUpdater-Single-Files/ZedUpdater-GUI.exe
           cp ZedUpdater-Windows-Console-Single-File/ZedUpdater-Console.exe ZedUpdater-Single-Files/ZedUpdater-Console.exe
-          zip -r ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip ZedUpdater-Single-Files/
+          zip -r ZedUpdater-Windows-SingleFiles-v${{ needs.version.outputs.tag }}.zip ZedUpdater-Single-Files/
 
       - name: Get release info
         id: release_info
         run: |
-          echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "release_name=ZedUpdater ${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "is_prerelease=${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') || contains(github.ref, 'pre') }}" >> $GITHUB_OUTPUT
+          echo "tag_name=${{ needs.version.outputs.tag }}" >> $GITHUB_OUTPUT
+          echo "release_name=ZedUpdater ${{ needs.version.outputs.tag }}" >> $GITHUB_OUTPUT
+          echo "is_prerelease=${{ contains(needs.version.outputs.tag, 'beta') || contains(needs.version.outputs.tag, 'alpha') || contains(needs.version.outputs.tag, 'rc') || contains(needs.version.outputs.tag, 'pre') }}" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
         run: |
           if [ -f "CHANGELOG.md" ]; then
             # Extract changelog for this version
-            awk '/^## \[/{if(found) exit; if(/\[${{ github.ref_name }}\]/) found=1; next} found' CHANGELOG.md > current_changelog.txt || echo "更新日志请查看 CHANGELOG.md" > current_changelog.txt
+            awk '/^## \[/{if(found) exit; if(/\[${{ needs.version.outputs.tag }}\]/) found=1; next} found' CHANGELOG.md > current_changelog.txt || echo "自动构建版本 ${{ needs.version.outputs.tag }}" > current_changelog.txt
           else
-            echo "更新日志请查看提交历史" > current_changelog.txt
+            # 生成自动更新日志
+            echo "## 🚀 自动发布 ${{ needs.version.outputs.tag }}" > current_changelog.txt
+            echo "" >> current_changelog.txt
+            echo "### 📅 构建信息" >> current_changelog.txt
+            echo "- **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> current_changelog.txt
+            echo "- **构建分支**: ${{ github.ref_name }}" >> current_changelog.txt
+            echo "- **提交哈希**: ${{ github.sha }}" >> current_changelog.txt
+            echo "- **版本类型**: ${{ github.event.inputs.version_type || 'patch' }}" >> current_changelog.txt
+            echo "" >> current_changelog.txt
+            echo "### 🔄 最近更改" >> current_changelog.txt
+            # 获取最近的提交信息
+            git log --oneline -10 --pretty=format:"- %s" >> current_changelog.txt || echo "- 查看完整提交历史请访问 GitHub" >> current_changelog.txt
           fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip
-            ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip
-            ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip
+            ZedUpdater-Windows-GUI-v${{ needs.version.outputs.tag }}.zip
+            ZedUpdater-Windows-Complete-v${{ needs.version.outputs.tag }}.zip
+            ZedUpdater-Windows-SingleFiles-v${{ needs.version.outputs.tag }}.zip
+          tag_name: ${{ needs.version.outputs.tag }}
           name: ${{ steps.release_info.outputs.release_name }}
           draft: false
           prerelease: ${{ steps.release_info.outputs.is_prerelease }}
           generate_release_notes: true
           body: |
-            ## 🎉 ZedUpdater ${{ github.ref_name }} 发布
+            ## 🎉 ZedUpdater ${{ needs.version.outputs.tag }} 自动发布
+
+            > ⚡ 这是一个自动构建的版本，包含最新的代码更改。
 
             ### 📥 下载选项
 
             #### 🎯 推荐下载 (GUI版本)
-            **[ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-GUI-v${{ github.ref_name }}.zip)**
+            **[ZedUpdater-Windows-GUI-v${{ needs.version.outputs.tag }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/ZedUpdater-Windows-GUI-v${{ needs.version.outputs.tag }}.zip)**
             - ✨ 纯GUI界面，无控制台窗口
             - 📁 解压即用，包含所有必要文件
             - 🚀 多种启动方式可选
 
             #### 🔧 完整版本 (GUI + 控制台)
-            **[ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-Complete-v${{ github.ref_name }}.zip)**
+            **[ZedUpdater-Windows-Complete-v${{ needs.version.outputs.tag }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/ZedUpdater-Windows-Complete-v${{ needs.version.outputs.tag }}.zip)**
             - 📦 包含GUI版和控制台版
             - 🐛 适合调试和高级用户
             - 💻 支持命令行操作
 
             #### 💼 单文件版本
-            **[ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ZedUpdater-Windows-SingleFiles-v${{ github.ref_name }}.zip)**
+            **[ZedUpdater-Windows-SingleFiles-v${{ needs.version.outputs.tag }}.zip](https://github.com/${{ github.repository }}/releases/download/${{ needs.version.outputs.tag }}/ZedUpdater-Windows-SingleFiles-v${{ needs.version.outputs.tag }}.zip)**
             - 🎯 仅包含可执行文件
             - 📋 需要自行配置
             - 🏃 适合集成到其他项目
@@ -427,13 +559,26 @@ jobs:
             ### 🔄 更新内容
             $(cat current_changelog.txt 2>/dev/null || echo "请查看 [提交历史](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) 获取详细更新内容")
 
+            ### 🔧 版本信息
+            - **版本号**: ${{ needs.version.outputs.version }}
+            - **版本类型**: ${{ github.event.inputs.version_type || 'patch' }}
+            - **触发方式**: ${{ github.event_name }}
+            - **构建分支**: ${{ github.ref_name }}
+
             ### 🐛 问题反馈
             - [报告问题](https://github.com/${{ github.repository }}/issues)
             - [查看文档](https://github.com/${{ github.repository }}/blob/main/README.md)
             - [使用指南](https://github.com/${{ github.repository }}/blob/main/QUICK_START.md)
 
+            ### 🔄 自动更新说明
+            本项目支持自动版本管理：
+            - **Push到main分支**: 自动发布patch版本
+            - **手动触发**: 可选择版本类型 (major/minor/patch)
+            - **标签管理**: 自动创建和推送版本标签
+
             ---
             **构建信息**: Python 3.11 + PyInstaller + Windows Latest
-            **构建时间**: ${{ github.run_id }} - ${{ github.sha }}
+            **构建ID**: ${{ github.run_id }} | **提交**: ${{ github.sha }}
+            **自动版本**: v${{ needs.version.outputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
