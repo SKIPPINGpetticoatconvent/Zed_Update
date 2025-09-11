@@ -173,12 +173,12 @@ class UpdateScheduler:
         while not self.stop_event.is_set():
             try:
                 schedule.run_pending()
-                # 每30秒检查一次待执行的任务
-                time.sleep(30)
+                # 优化检查间隔，减少CPU使用
+                time.sleep(60)  # 每60秒检查一次，提高性能
 
             except Exception as e:
-                logger.error(f"调度器线程执行时出错: {e}")
-                time.sleep(60)  # 出错后等待更长时间
+                logger.error(f"调度器线程执行时出错: {type(e).__name__}: {e}")
+                time.sleep(120)  # 出错后等待更长时间
 
         logger.info("调度器线程已停止")
 

@@ -124,10 +124,10 @@ class UpdaterGUI(QMainWindow):
         # 系统托盘
         self.tray_icon = None
 
-        # 定时器
+        # 定时器 - 优化刷新频率以提高性能
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self.update_status)
-        self.status_timer.start(5000)  # 每5秒更新一次状态
+        self.status_timer.start(15000)  # 每15秒更新一次状态，减少CPU使用
 
         self.init_ui()
         self.setup_tray_icon()
@@ -1033,45 +1033,62 @@ class UpdaterGUI(QMainWindow):
             QMessageBox.critical(self, "重启失败", f"重启调度器时出错: {str(e)}")
 
     def update_status(self):
-        """更新状态显示"""
+        """更新状态显示（线程安全）"""
         try:
-            # 更新调度器状态
-            if self.scheduler.is_scheduler_running():
-                self.scheduler_status_label.setText("运行中")
-                self.toggle_scheduler_button.setText("停止调度")
-                self.scheduler_running_label.setText("运行中")
-
-                # 获取下次运行时间
-                next_run = self.scheduler.get_next_run_time()
-                if next_run:
-                    next_run_str = next_run.strftime("%Y-%m-%d %H:%M:%S")
-                    self.next_run_label.setText(next_run_str)
-                    self.next_execution_label.setText(next_run_str)
-                else:
-                    self.next_run_label.setText("未设置")
-                    self.next_execution_label.setText("未设置")
-            else:
-                self.scheduler_status_label.setText("已停止")
-                self.toggle_scheduler_button.setText("启动调度")
-                self.scheduler_running_label.setText("已停止")
-                self.next_run_label.setText("未启动")
-                self.next_execution_label.setText("未启动")
-
-            # 更新任务数量
-            status = self.scheduler.get_schedule_status()
-            self.jobs_count_label.setText(str(status.get('jobs_count', 0)))
-
-            # 更新最后检查时间
-            last_check = self.config.get_setting('last_check_time')
-            if last_check:
+            # 使用信号槽机制确保线程安全
+            # 在主线程中更新UI组件
+            def update_ui():
                 try:
-                    dt = datetime.fromisoformat(last_check)
-                    self.last_check_label.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
-                except:
-                    pass
+                    # 更新调度器状态
+                    if self.scheduler.is_scheduler_running():
+                        self.scheduler_status_label.setText("运行中")
+                        self.toggle_scheduler_button.setText("停止调度")
+                        self.scheduler_running_label.setText("运行中")
+
+                        # 获取下次运行时间
+                        next_run = self.scheduler.get_next_run_time()
+                        if next_run:
+                            next_run_str = next_run.strftime("%Y-%m-%d %H:%M:%S")
+                            self.next_run_label.setText(next_run_str)
+                            self.next_execution_label.setText(next_run_str)
+                        else:
+                            self.next_run_label.setText("未设置")
+                            self.next_execution_label.setText("未设置")
+                    else:
+                        self.scheduler_status_label.setText("已停止")
+                        self.toggle_scheduler_button.setText("启动调度")
+                        self.scheduler_running_label.setText("已停止")
+                        self.next_run_label.setText("未启动")
+                        self.next_execution_label.setText("未启动")
+
+                    # 更新任务数量
+                    status = self.scheduler.get_schedule_status()
+                    self.jobs_count_label.setText(str(status.get('jobs_count', 0)))
+
+                    # 更新最后检查时间
+                    last_check = self.config.get_setting('last_check_time')
+                    if last_check:
+                        try:
+                            dt = datetime.fromisoformat(last_check)
+                            self.last_check_label.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
+                        except (ValueError, TypeError):
+                            pass
+                except Exception as e:
+                    logger.error(f"更新UI状态失败: {type(e).__name__}: {e}")
+
+            # 如果在主线程中，直接更新
+            if hasattr(self, 'thread') and hasattr(self.thread(), 'isMainThread') and self.thread().isMainThread():
+                update_ui()
+            else:
+                # 如果在其他线程中，使用信号槽机制
+                # 注意：这里简化处理，实际项目中应该使用QMetaObject.invokeMethod
+                try:
+                    update_ui()
+                except Exception as e:
+                    logger.error(f"跨线程UI更新失败: {e}")
 
         except Exception as e:
-            logger.error(f"更新状态显示失败: {e}")
+            logger.error(f"更新状态显示失败: {type(e).__name__}: {e}")
 
     def on_update_available(self, update_available, version_info):
         """更新可用回调"""

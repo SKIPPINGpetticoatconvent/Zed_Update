@@ -110,8 +110,12 @@ class ZedUpdater:
                 self.current_version = saved_version
                 return saved_version
 
+        except (OSError, ValueError, TypeError) as e:
+            logger.error(f"获取当前版本时出错: {type(e).__name__}: {e}")
+        except ImportError as e:
+            logger.error(f"缺少必需的模块: {e}")
         except Exception as e:
-            logger.error(f"获取当前版本时出错: {e}")
+            logger.error(f"获取当前版本时发生意外错误: {type(e).__name__}: {e}")
 
         return None
 
@@ -243,8 +247,12 @@ class ZedUpdater:
 
             return 0
 
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.error(f"版本格式错误，无法比较: {type(e).__name__}: {e}")
+            # 如果比较失败，假设需要更新
+            return -1
         except Exception as e:
-            logger.error(f"版本比较出错: {e}")
+            logger.error(f"版本比较时发生意外错误: {type(e).__name__}: {e}")
             # 如果比较失败，假设需要更新
             return -1
 
@@ -278,22 +286,6 @@ class ZedUpdater:
             # 其他情况使用版本比较
             return self.compare_versions(current, latest) < 0
 
-    def _safe_filename_from_url(self, url: str) -> str:
-        """从URL安全提取文件名"""
-        from urllib.parse import urlparse
-        from pathlib import Path
-
-        parsed = urlparse(url)
-        filename = Path(parsed.path).name
-
-        # 验证文件名安全，移除路径遍历字符
-        if not filename or any(invalid in filename for invalid in ['..', '/', '\\', ':', '*', '?', '"', '<', '>', '|']):
-            # 生成安全文件名
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"zed_update_{timestamp}.zip"
-
-        return filename
-
     def _retry_request(self, url: str, max_retries: int = 3, backoff_factor: float = 2.0,
                       progress_callback=None, proxies=None, timeout: int = 300):
         """带重试机制的HTTP请求"""
@@ -323,18 +315,30 @@ class ZedUpdater:
             from urllib.parse import urlparse, unquote
             import re
 
+            # 验证URL格式
+            if not url or not isinstance(url, str):
+                raise ValueError("无效的URL")
+
             # 解析URL并获取路径部分
             parsed_url = urlparse(url)
+            if not parsed_url.scheme or not parsed_url.netloc:
+                raise ValueError("URL格式不正确")
+
             path = unquote(parsed_url.path)
+
+            # 检查路径遍历攻击
+            if any(traversal in path for traversal in ['..', '../', '..\\', '\\..']):
+                raise ValueError("检测到路径遍历攻击")
 
             # 获取基本文件名 (最后一部分)
             filename = os.path.basename(path)
 
             # 如果URL没有有效的文件名部分，使用域名加时间戳
             if not filename or filename == "/" or "." not in filename:
-                import datetime
-                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 domain = parsed_url.netloc.split(':')[0]  # 移除端口号
+                # 清理域名中的不安全字符
+                domain = re.sub(r'[^\w\-]', '_', domain)
                 filename = f"{domain}_{timestamp}.zip"
 
             # 删除所有不安全字符，只保留字母、数字、下划线、点和连字符
@@ -343,10 +347,13 @@ class ZedUpdater:
             # 确保文件名不以点开头（防止隐藏文件）
             filename = filename.lstrip('.')
 
+            # 确保文件名不包含路径分隔符
+            if os.sep in filename or (os.altsep and os.altsep in filename):
+                raise ValueError("文件名包含路径分隔符")
+
             # 如果文件名为空，使用默认名称
             if not filename:
-                import datetime
-                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"download_{timestamp}.zip"
 
             # 限制文件名长度
@@ -354,13 +361,21 @@ class ZedUpdater:
                 name, ext = os.path.splitext(filename)
                 filename = name[:95] + ext
 
+            # 最终验证：确保文件名是安全的
+            if not filename or '..' in filename or filename.startswith('.'):
+                raise ValueError("生成的文件名不安全")
+
             return filename
 
-        except Exception as e:
-            logger.error(f"生成安全文件名时出错: {e}")
+        except (ValueError, TypeError) as e:
+            logger.error(f"生成安全文件名时出错: {type(e).__name__}: {e}")
             # 出错时返回带时间戳的默认文件名
-            import datetime
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            return f"zed_update_{timestamp}.zip"
+        except Exception as e:
+            logger.error(f"生成安全文件名时发生意外错误: {type(e).__name__}: {e}")
+            # 出错时返回带时间戳的默认文件名
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             return f"zed_update_{timestamp}.zip"
 
     def download_update(self, progress_callback=None) -> Optional[Path]:
