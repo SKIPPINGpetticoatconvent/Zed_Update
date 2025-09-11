@@ -2,10 +2,10 @@ name: Build Executable
 
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
+    branches: [main, master]
+    tags: ["v*"]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
@@ -14,149 +14,149 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-    - name: Install system dependencies (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0
 
-    - name: Build with PyInstaller (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        pyinstaller --onefile --windowed --name "ZedUpdater" --icon=icon.ico --add-data "config.example.json;." --hidden-import PyQt5.sip --hidden-import win32api --hidden-import win32con --hidden-import win32file --hidden-import win32gui --hidden-import win32process --collect-all PyQt5 main.py
+      - name: Build with PyInstaller (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --onefile --windowed --name "ZedUpdater" --icon=icon.ico --add-data "config.example.json;." --hidden-import PyQt5.sip --hidden-import win32api --hidden-import win32con --hidden-import win32file --hidden-import win32gui --hidden-import win32process --collect-all PyQt5 main.py
 
-    - name: Build with PyInstaller (Linux/macOS)
-      if: matrix.os != 'windows-latest'
-      run: |
-        pyinstaller --onefile --windowed --name "ZedUpdater" --add-data "config.example.json:." --hidden-import PyQt5.sip --collect-all PyQt5 main.py
+      - name: Build with PyInstaller (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          pyinstaller --onefile --windowed --name "ZedUpdater" --add-data "config.example.json:." --hidden-import PyQt5.sip --collect-all PyQt5 main.py
 
-    - name: Create portable package (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        mkdir ZedUpdater-portable-windows
-        copy dist\ZedUpdater.exe ZedUpdater-portable-windows\
-        copy config.example.json ZedUpdater-portable-windows\config.json
-        copy README.md ZedUpdater-portable-windows\
-        copy LICENSE ZedUpdater-portable-windows\
-        echo "ZedUpdater.exe" > ZedUpdater-portable-windows\start.bat
+      - name: Create portable package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          mkdir ZedUpdater-portable-windows
+          copy dist\ZedUpdater.exe ZedUpdater-portable-windows\
+          copy config.example.json ZedUpdater-portable-windows\config.json
+          copy README.md ZedUpdater-portable-windows\
+          copy LICENSE ZedUpdater-portable-windows\
+          echo "ZedUpdater.exe" > ZedUpdater-portable-windows\start.bat
 
-    - name: Create portable package (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        mkdir ZedUpdater-portable-linux
-        cp dist/ZedUpdater ZedUpdater-portable-linux/
-        cp config.example.json ZedUpdater-portable-linux/config.json
-        cp README.md ZedUpdater-portable-linux/
-        cp LICENSE ZedUpdater-portable-linux/
-        chmod +x ZedUpdater-portable-linux/ZedUpdater
-        echo '#!/bin/bash' > ZedUpdater-portable-linux/start.sh
-        echo './ZedUpdater' >> ZedUpdater-portable-linux/start.sh
-        chmod +x ZedUpdater-portable-linux/start.sh
+      - name: Create portable package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir ZedUpdater-portable-linux
+          cp dist/ZedUpdater ZedUpdater-portable-linux/
+          cp config.example.json ZedUpdater-portable-linux/config.json
+          cp README.md ZedUpdater-portable-linux/
+          cp LICENSE ZedUpdater-portable-linux/
+          chmod +x ZedUpdater-portable-linux/ZedUpdater
+          echo '#!/bin/bash' > ZedUpdater-portable-linux/start.sh
+          echo './ZedUpdater' >> ZedUpdater-portable-linux/start.sh
+          chmod +x ZedUpdater-portable-linux/start.sh
 
-    - name: Create portable package (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        mkdir ZedUpdater-portable-macos
-        cp dist/ZedUpdater ZedUpdater-portable-macos/
-        cp config.example.json ZedUpdater-portable-macos/config.json
-        cp README.md ZedUpdater-portable-macos/
-        cp LICENSE ZedUpdater-portable-macos/
-        chmod +x ZedUpdater-portable-macos/ZedUpdater
-        echo '#!/bin/bash' > ZedUpdater-portable-macos/start.sh
-        echo './ZedUpdater' >> ZedUpdater-portable-macos/start.sh
-        chmod +x ZedUpdater-portable-macos/start.sh
+      - name: Create portable package (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir ZedUpdater-portable-macos
+          cp dist/ZedUpdater ZedUpdater-portable-macos/
+          cp config.example.json ZedUpdater-portable-macos/config.json
+          cp README.md ZedUpdater-portable-macos/
+          cp LICENSE ZedUpdater-portable-macos/
+          chmod +x ZedUpdater-portable-macos/ZedUpdater
+          echo '#!/bin/bash' > ZedUpdater-portable-macos/start.sh
+          echo './ZedUpdater' >> ZedUpdater-portable-macos/start.sh
+          chmod +x ZedUpdater-portable-macos/start.sh
 
-    - name: Archive portable package (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-portable-windows-py${{ matrix.python-version }}
-        path: ZedUpdater-portable-windows/
+      - name: Archive portable package (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-portable-windows-py${{ matrix.python-version }}
+          path: ZedUpdater-portable-windows/
 
-    - name: Archive portable package (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-portable-linux-py${{ matrix.python-version }}
-        path: ZedUpdater-portable-linux/
+      - name: Archive portable package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-portable-linux-py${{ matrix.python-version }}
+          path: ZedUpdater-portable-linux/
 
-    - name: Archive portable package (macOS)
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-portable-macos-py${{ matrix.python-version }}
-        path: ZedUpdater-portable-macos/
+      - name: Archive portable package (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-portable-macos-py${{ matrix.python-version }}
+          path: ZedUpdater-portable-macos/
 
-    - name: Upload executable (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-windows-py${{ matrix.python-version }}-exe
-        path: dist/ZedUpdater.exe
+      - name: Upload executable (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-windows-py${{ matrix.python-version }}-exe
+          path: dist/ZedUpdater.exe
 
-    - name: Upload executable (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-linux-py${{ matrix.python-version }}-bin
-        path: dist/ZedUpdater
+      - name: Upload executable (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-linux-py${{ matrix.python-version }}-bin
+          path: dist/ZedUpdater
 
-    - name: Upload executable (macOS)
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
-      with:
-        name: ZedUpdater-macos-py${{ matrix.python-version }}-bin
-        path: dist/ZedUpdater
+      - name: Upload executable (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-macos-py${{ matrix.python-version }}-bin
+          path: dist/ZedUpdater
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
 
-    - name: Create release archives
-      run: |
-        # Create zip archives for each platform
-        zip -r ZedUpdater-windows.zip ZedUpdater-portable-windows-py3.11/
-        tar -czf ZedUpdater-linux.tar.gz ZedUpdater-portable-linux-py3.11/
-        tar -czf ZedUpdater-macos.tar.gz ZedUpdater-portable-macos-py3.11/
+      - name: Create release archives
+        run: |
+          # Create zip archives for each platform
+          zip -r ZedUpdater-windows.zip ZedUpdater-portable-windows-py3.11/
+          tar -czf ZedUpdater-linux.tar.gz ZedUpdater-portable-linux-py3.11/
+          tar -czf ZedUpdater-macos.tar.gz ZedUpdater-portable-macos-py3.11/
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          ZedUpdater-windows.zip
-          ZedUpdater-linux.tar.gz
-          ZedUpdater-macos.tar.gz
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ZedUpdater-windows.zip
+            ZedUpdater-linux.tar.gz
+            ZedUpdater-macos.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
