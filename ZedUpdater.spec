@@ -14,7 +14,7 @@ block_cipher = None
 project_root = Path(os.getcwd())
 
 a = Analysis(
-    ['main.pyw'],
+    ['gui_launcher.pyw'],
     pathex=[str(project_root)],
     binaries=[],
     datas=[

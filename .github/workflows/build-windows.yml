@@ -149,7 +149,7 @@ jobs:
           echo "block_cipher = None" >> ZedUpdater.spec
           echo "" >> ZedUpdater.spec
           echo "a = Analysis(" >> ZedUpdater.spec
-          echo "    ['gui_launcher.pyw']," >> ZedUpdater.spec
+          echo "    ['main.pyw']," >> ZedUpdater.spec
           echo "    pathex=[]," >> ZedUpdater.spec
           echo "    binaries=[]," >> ZedUpdater.spec
           echo "    datas=[" >> ZedUpdater.spec
@@ -230,7 +230,7 @@ jobs:
           echo "    binaries=[]," >> ZedUpdater-Console.spec
           echo "    datas=[" >> ZedUpdater-Console.spec
           echo "        ('config.example.json', '.')," >> ZedUpdater-Console.spec
-          echo "        ('gui_launcher.pyw', '.')," >> ZedUpdater-Console.spec
+          echo "        ('main.pyw', '.')," >> ZedUpdater-Console.spec
           echo "        ('updater', 'updater')," >> ZedUpdater-Console.spec
           echo "    ]," >> ZedUpdater-Console.spec
           echo "    hiddenimports=[" >> ZedUpdater-Console.spec
@@ -311,7 +311,7 @@ jobs:
           copy LICENSE ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
           copy CHANGELOG.md ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
           copy QUICK_START.md ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
-          copy gui_launcher.pyw ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
+          # copy main.pyw instead of non-existent gui_launcher.pyw
           copy main.pyw ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
           copy start_gui.bat ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
           copy start_gui_silent.vbs ZedUpdater-GUI-Portable\ -ErrorAction SilentlyContinue
@@ -336,7 +336,7 @@ jobs:
           echo "2. start-gui.bat             - 启动GUI界面 (推荐)" >> ZedUpdater-GUI-Portable\使用说明.txt
           echo "3. start-gui-silent.bat      - 启动GUI界面 (静默模式)" >> ZedUpdater-GUI-Portable\使用说明.txt
           echo "4. start-gui-invisible.vbs   - 完全隐藏启动GUI" >> ZedUpdater-GUI-Portable\使用说明.txt
-          echo "5. gui_launcher.pyw          - Python启动器 (需要Python环境)" >> ZedUpdater-GUI-Portable\使用说明.txt
+          echo "5. main.pyw                   - Python启动器 (需要Python环境)" >> ZedUpdater-GUI-Portable\使用说明.txt
           echo "" >> ZedUpdater-GUI-Portable\使用说明.txt
           echo "## 注意事项:" >> ZedUpdater-GUI-Portable\使用说明.txt
           echo "- 此版本为纯GUI版本，不会显示控制台窗口" >> ZedUpdater-GUI-Portable\使用说明.txt
@@ -351,7 +351,7 @@ jobs:
           copy LICENSE ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
           copy CHANGELOG.md ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
           copy QUICK_START.md ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
-          copy gui_launcher.pyw ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
+          # copy main.pyw instead of non-existent gui_launcher.pyw
           copy main.pyw ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
           copy start_gui.bat ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue
           copy start_gui_silent.vbs ZedUpdater-Complete-Portable\ -ErrorAction SilentlyContinue

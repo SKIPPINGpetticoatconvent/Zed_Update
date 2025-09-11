@@ -13,7 +13,7 @@ block_cipher = None
 project_root = Path(__file__).parent
 
 a = Analysis(
-    ['gui_launcher.pyw'],
+    ['main.pyw'],
     pathex=[str(project_root)],
     binaries=[],
     datas=[
