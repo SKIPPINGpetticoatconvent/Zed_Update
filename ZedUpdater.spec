@@ -10,7 +10,7 @@ from pathlib import Path
 block_cipher = None
 
 # 获取项目根目录
-project_root = Path(__file__).parent
+project_root = Path.cwd()
 
 a = Analysis(
     ['gui_launcher.pyw'],
