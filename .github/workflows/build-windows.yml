@@ -170,7 +170,7 @@ jobs:
           retention-days: 30
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
     needs: build
     runs-on: ubuntu-latest
 
@@ -184,6 +184,12 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${{ github.ref_name }}"
             VERSION_NUMBER="${VERSION#v}"
+          elif [[ "${{ github.ref }}" == refs/heads/main || "${{ github.ref }}" == refs/heads/master ]]; then
+            # Automatic release from main/master branch
+            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+            COMMIT_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
+            VERSION="v1.0.0-dev.${TIMESTAMP}.${COMMIT_SHORT}"
+            VERSION_NUMBER="1.0.0-dev.${TIMESTAMP}.${COMMIT_SHORT}"
           else
             VERSION="v1.0.0"
             VERSION_NUMBER="1.0.0"
@@ -237,12 +243,12 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "Zed Updater ${{ steps.version.outputs.tag }}"
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'dev') }}
           generate_release_notes: true
           body: |
             ## Zed Editor 自动更新程序 ${{ steps.version.outputs.tag }}
 
-            ### 下载说明
+            ${{ contains(steps.version.outputs.version, 'dev') && '### 🚀 自动构建版本\n此版本由主分支推送自动生成，仅用于测试目的。\n\n' || '' }}### 下载说明
             - **ZedUpdater-Windows-GUI**: 图形界面版本（推荐）
             - **ZedUpdater-Windows-Console**: 控制台版本（用于脚本调用）
             - **ZedUpdater-Windows-GUI-Portable**: 便携版图形界面（包含配置文件）
@@ -260,5 +266,7 @@ jobs:
             2. 解压到任意目录
             3. 运行 ZedUpdater.exe
             4. 按照界面提示配置 Zed 安装路径
+
+            ${{ contains(steps.version.outputs.version, 'dev') && '\n\n---\n*此自动构建版本基于提交: ${{ github.sha }}*' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
