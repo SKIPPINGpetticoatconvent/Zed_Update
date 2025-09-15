@@ -118,7 +118,6 @@ jobs:
             legacy/dist/zed-updater-legacy-*
           retention-days: 30
 
-  build-modern-backend:
     name: Build Modern Backend (Go)
     runs-on: ubuntu-latest
     needs: detect-changes
@@ -199,15 +198,6 @@ jobs:
             modern/backend/zed-updater-backend-*
           retention-days: 30
 
-  build-modern-frontend:
-    name: Build Modern Frontend (PyQt5)
-    runs-on: ${{ matrix.os }}
-    needs: detect-changes
-    if: needs.detect-changes.outputs.modern-changed == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    strategy:
-      matrix:
-        os: [windows-latest]
-        python-version: ["3.11"]
 
     steps:
       - name: Checkout code
@@ -278,12 +268,6 @@ jobs:
             modern/frontend/dist/zed-updater-modern-gui-*
           retention-days: 30
 
-  integration-test:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [build-modern-backend, build-modern-frontend]
-
-    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
