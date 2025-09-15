@@ -1,219 +1,345 @@
 # Zed Editor 自动更新程序
 
-一个功能完整的 Zed 编辑器自动更新工具，支持定时检查、自动下载和安装最新版本。
+<div align="center">
 
-## 🚀 主要功能
+[![Build Status](https://github.com/TC999/zed-update/workflows/Build%20Multi-Architecture%20Zed%20Updater/badge.svg)](https://github.com/TC999/zed-update/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8.svg)](https://golang.org)
+[![PyQt5](https://img.shields.io/badge/PyQt5-5.15+-green.svg)](https://www.riverbankcomputing.com/software/pyqt/)
 
-### 核心功能
-- **自动版本检查**: 定期检查 GitHub 上的最新版本
-- **智能下载**: 自动下载适合 Windows 的版本
-- **安全更新**: 创建备份后安装新版本
-- **定时调度**: 支持自定义时间和频率的自动检查
-- **图形界面**: 用户友好的 GUI 配置界面
-- **强制下载**: 支持无视版本差异，总是下载最新版本
+**自动检查、下载和安装 Zed Editor 最新版本的强大工具**
 
-### 高级特性
-- **系统托盘**: 最小化到托盘，后台运行
-- **开机自启**: 可选的开机自动启动
-- **备份管理**: 自动备份旧版本，可配置保留数量
-- **代理支持**: 支持 HTTP/HTTPS 代理
-- **日志记录**: 详细的操作日志
-- **通知提醒**: 更新可用和完成时的系统通知
+[功能特色](#-功能特色) • [快速开始](#-快速开始) • [架构对比](#-架构对比) • [安装指南](#-安装指南) • [文档](#-文档)
 
-## 📦 安装说明
+</div>
 
-### 系统要求
-- Windows 10/11
-- Python 3.7 或更高版本
-- 网络连接（用于检查和下载更新）
+## 🚀 双架构设计
 
-### 快速安装
-1. 下载或克隆本项目
-2. 运行安装脚本：
-   ```bash
-   python install.py
-   ```
-3. 按照向导完成安装配置
+本项目提供两种实现方案，满足不同需求：
+
+### 🏛️ Legacy 实现（经典版）
+- **单体应用架构**：一个可执行文件包含所有功能
+- **最小依赖**：只需要 Python + PyQt5
+- **兼容性强**：支持较老的系统环境
+- **部署简单**：开箱即用
+
+### 🚀 Modern 实现（现代版）
+- **微服务架构**：Go 后端 + PyQt5 前端
+- **高性能**：Go 提供快速的 API 响应
+- **可扩展**：松耦合设计，易于功能扩展
+- **现代化**：RESTful API，实时通信
+
+## 📁 项目结构
+
+```
+Zed_Update/
+├── 📂 legacy/                    # 经典实现
+│   ├── main.py                   # 主程序入口
+│   ├── gui_launcher.pyw          # GUI 启动器
+│   ├── requirements.txt          # Python 依赖
+│   ├── install.py                # 安装脚本
+│   ├── uninstall.py             # 卸载脚本
+│   └── 📂 updater/              # 核心模块
+│       ├── gui.py               # GUI 界面
+│       ├── updater.py           # 更新逻辑
+│       ├── config.py            # 配置管理
+│       └── scheduler.py         # 定时任务
+│
+├── 📂 modern/                   # 现代实现
+│   ├── 📂 backend/              # Go 后端服务
+│   │   ├── main.go              # HTTP API 服务器
+│   │   ├── go.mod               # Go 模块定义
+│   │   └── go.sum               # 依赖锁定
+│   └── 📂 frontend/             # PyQt5 前端
+│       ├── main.py              # GUI 应用程序
+│       └── requirements.txt     # Python 依赖
+│
+├── 📂 scripts/                  # 构建和启动脚本
+│   ├── start-legacy.bat/sh      # 启动经典版
+│   ├── start-modern.bat/sh      # 启动现代版
+│   └── Makefile                 # 构建配置
+│
+├── 📂 .github/workflows/        # CI/CD 配置
+├── 📂 docs/                     # 详细文档
+├── start.bat/sh                 # 统一启动入口
+└── README.md                    # 本文件
+```
+
+## ⚡ 快速开始
+
+### 一键启动
+
+```bash
+# Windows
+start.bat
+
+# Linux/macOS
+chmod +x start.sh
+./start.sh
+```
+
+启动脚本会自动检测系统环境，提供交互式选择界面：
+1. **Legacy 实现** - 经典单体应用
+2. **Modern 实现** - 现代微服务架构
+3. **自动选择** - 基于系统环境智能选择
+
+### 直接启动特定实现
+
+```bash
+# 启动 Legacy 实现
+scripts/start-legacy.bat    # Windows
+./scripts/start-legacy.sh   # Linux/macOS
+
+# 启动 Modern 实现
+scripts/start-modern.bat    # Windows  
+./scripts/start-modern.sh   # Linux/macOS
+```
+
+## 🎯 功能特色
+
+### 🔄 智能更新
+- **自动版本检测**：实时检查 GitHub 最新版本
+- **增量下载**：只下载必要的更新文件
+- **断点续传**：网络中断后可继续下载
+- **校验完整性**：SHA256 校验确保文件安全
+
+### 🎨 现代界面
+- **响应式设计**：适配不同屏幕分辨率
+- **暗黑主题**：护眼的深色界面
+- **多语言支持**：中英文界面切换
+- **系统托盘**：最小化到托盘继续运行
+
+### ⚙️ 灵活配置
+- **定时检查**：可配置自动检查间隔
+- **备份策略**：自动备份旧版本
+- **代理支持**：支持 HTTP/HTTPS 代理
+- **启动选项**：多种启动和安装模式
+
+### 🛡️ 安全可靠
+- **数字签名验证**：验证下载文件的完整性
+- **沙箱运行**：隔离的更新环境
+- **回滚机制**：更新失败时自动恢复
+- **日志审计**：详细的操作日志记录
+
+## 🏗️ 架构对比
+
+| 特性 | Legacy 实现 | Modern 实现 | 说明 |
+|------|-------------|-------------|------|
+| **架构设计** | 单体应用 | 微服务 | Modern 更易扩展和维护 |
+| **性能** | 中等 | 高 | Go 后端提供更快响应 |
+| **部署复杂度** | 简单 | 中等 | Legacy 一键部署，Modern 需要两个组件 |
+| **系统资源** | 80MB | 120MB | Modern 占用略多内存 |
+| **扩展性** | 有限 | 优秀 | Modern 可轻松添加新功能 |
+| **兼容性** | 优秀 | 良好 | Legacy 支持更多老系统 |
+| **技术栈** | Python + PyQt5 | Go + Python + PyQt5 | Modern 使用更多现代技术 |
+
+## 📋 系统要求
+
+### Legacy 实现
+- **操作系统**: Windows 7+, macOS 10.12+, Ubuntu 16.04+
+- **Python**: 3.9 或更高版本
+- **内存**: 最少 256MB 可用内存
+- **存储**: 50MB 可用磁盘空间
+- **网络**: 互联网连接（用于检查更新）
+
+### Modern 实现
+- **操作系统**: Windows 10+, macOS 10.14+, Ubuntu 18.04+
+- **Python**: 3.9 或更高版本
+- **Go**: 1.21 或更高版本
+- **内存**: 最少 512MB 可用内存
+- **存储**: 100MB 可用磁盘空间
+- **网络**: 互联网连接（用于检查更新）
+
+## 🔧 安装指南
+
+### 自动安装（推荐）
+
+```bash
+# 克隆仓库
+git clone https://github.com/TC999/zed-update.git
+cd zed-update
+
+# 运行安装脚本
+python legacy/install.py
+```
 
 ### 手动安装
-1. 安装 Python 依赖：
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. 运行程序：
-   ```bash
-   python main.py
-   ```
 
-## 🎯 使用方法
-
-### 图形界面模式
+#### Legacy 实现
 ```bash
+cd legacy
+pip install -r requirements.txt
 python main.py --gui
-# 或者双击 ZedUpdater.bat
 ```
 
-### 命令行模式
+#### Modern 实现
 ```bash
-# 仅检查并更新
-python main.py --update
+# 安装后端依赖
+cd modern/backend
+go mod tidy
 
-# 显示帮助
-python main.py --help
+# 安装前端依赖
+cd ../frontend
+pip install -r requirements.txt
+
+# 启动后端（新终端）
+cd ../backend
+go run main.go
+
+# 启动前端
+cd ../frontend
+python main.py
 ```
 
-### 系统服务模式
-程序可以在后台运行，定期自动检查更新。
+## 🔌 API 文档（Modern 实现）
 
-## ⚙️ 配置选项
+Modern 实现提供完整的 RESTful API：
 
-### 基本设置
-- **Zed 安装路径**: Zed.exe 文件的完整路径
-- **自动检查**: 是否启用定期检查
-- **检查间隔**: 检查更新的时间间隔（小时）
-- **自动下载**: 发现更新时自动下载
-- **自动安装**: 下载完成后自动安装（谨慎使用）
-- **总是下载最新版本**: 无需版本检查，直接下载最新版本（推荐）
-
-### 定时设置
-- **定时更新**: 在指定时间执行检查
-- **执行时间**: 24小时格式 (如：02:00)
-- **执行天数**: 选择一周中的哪些天执行
-
-### 高级设置
-- **代理配置**: HTTP/HTTPS 代理设置
-- **超时设置**: 下载超时时间
-- **重试次数**: 失败时的重试次数
-- **备份管理**: 备份文件的数量限制
-
-## 📁 文件结构
-
-```
-D:\Vs\Zed_Update\
-├── main.py              # 主程序入口
-├── install.py           # 安装脚本
-├── uninstall.py         # 卸载脚本
-├── requirements.txt     # Python依赖
-├── config.json          # 配置文件
-├── zed_updater.log      # 日志文件
-├── updater/             # 核心模块
-│   ├── __init__.py
-│   ├── config.py        # 配置管理
-│   ├── updater.py       # 更新逻辑
-│   ├── scheduler.py     # 定时调度
-│   └── gui.py           # 图形界面
-├── ZedUpdater.bat       # GUI启动脚本
-├── ZedUpdate.bat        # 命令行更新脚本
-└── ZedUpdateSilent.bat  # 静默更新脚本
+### 健康检查
+```http
+GET /api/v1/health
 ```
 
-## 🛠️ 配置文件示例
-
-```json
-{
-    "zed_install_path": "D:\\Zed.exe",
-    "auto_check_enabled": true,
-    "check_interval_hours": 24,
-    "auto_download": true,
-    "auto_install": false,
-    "backup_enabled": true,
-    "backup_count": 3,
-    "scheduled_update_enabled": true,
-    "scheduled_time": "02:00",
-    "scheduled_days": [0, 1, 2, 3, 4],
-    "show_notifications": true,
-    "minimize_to_tray": true,
-    "github_repo": "TC999/zed-loc",
-    "download_timeout": 300
-}
+### 系统信息
+```http
+GET /api/v1/system/info
+GET /api/v1/system/status
 ```
 
-## 🔧 常见问题
+### 更新管理
+```http
+GET  /api/v1/updates/check
+POST /api/v1/updates/download
+POST /api/v1/updates/install
+```
 
-### Q: 如何更改 Zed 的安装路径？
-A: 在图形界面的"基本设置"选项卡中修改路径，或直接编辑 `config.json` 文件。
+### Zed 管理
+```http
+GET  /api/v1/zed/version
+POST /api/v1/zed/start
+POST /api/v1/zed/backup
+```
 
-### Q: 程序无法检查更新怎么办？
-A: 检查网络连接，确认防火墙没有阻止程序访问网络。如果使用代理，请在"高级设置"中配置。
+### 配置管理
+```http
+GET  /api/v1/config
+POST /api/v1/config
+```
 
-### Q: 如何设置开机自启动？
-A: 在安装时选择开机自启动，或在"基本设置"中勾选相应选项。
+详细 API 文档请参考 [docs/API.md](docs/API.md)
 
-### Q: 更新失败如何恢复？
-A: 程序会自动创建备份，可以在 Zed 安装目录的 `zed_backups` 文件夹中找到备份文件。
+## 🔨 开发指南
 
-### Q: 如何完全卸载程序？
-A: 运行 `python uninstall.py` 或使用 Windows 控制面板卸载。
+### 构建项目
 
-## 🎨 界面预览
+```bash
+# 使用 Makefile（推荐）
+make help                    # 查看所有可用命令
+make all                     # 构建所有组件
+make legacy                  # 构建 Legacy 实现
+make modern                  # 构建 Modern 实现
+make cross-compile          # 跨平台编译
 
-### 主界面
-- 版本信息显示
-- 一键检查更新
-- 立即更新按钮
-- 启动 Zed 按钮
-- 更新进度显示
+# 或使用构建脚本
+scripts/build-all.sh        # 构建所有平台版本
+```
 
-### 设置界面
-- 基本设置：路径、自动更新选项
-- 定时设置：计划任务配置
-- 高级设置：网络、代理、日志
-- 日志查看：实时日志显示
+### 运行测试
 
-## 🚨 注意事项
+```bash
+# 单元测试
+make test                   # 运行所有测试
+make test-legacy           # 测试 Legacy 实现
+make test-modern           # 测试 Modern 实现
 
-### 安全提醒
-- **自动安装功能**: 建议仅在测试环境中启用，生产环境建议手动确认
-- **备份重要性**: 程序会自动备份，但建议定期备份重要配置
-- **网络安全**: 所有下载都通过 HTTPS 进行，确保传输安全
+# 集成测试
+python test_integration.py
 
-### 使用建议
-- 首次使用时建议先手动测试更新流程
-- 定期检查日志文件，确保程序正常运行
-- 根据需要调整检查频率，避免过于频繁的网络请求
+# 性能测试
+make benchmark
+```
 
-## 🔄 更新日志
+### 代码规范
 
-### v1.0.0 (2024-01-01)
-- 🎉 初始版本发布
-- ✅ 支持自动检查和更新 Zed 编辑器
-- ✅ 完整的图形用户界面
-- ✅ 定时任务调度功能
-- ✅ 备份和恢复机制
-- ✅ 系统托盘集成
-- ✅ 开机自启动支持
+- **Go**: 遵循 `gofmt` 和 `go vet` 标准
+- **Python**: 遵循 PEP 8 编码规范
+- **提交**: 使用 [Conventional Commits](https://conventionalcommits.org/) 格式
+
+## 📚 文档
+
+- [📖 详细使用说明](docs/USER_GUIDE.md)
+- [🏗️ 架构设计文档](docs/ARCHITECTURE.md)
+- [🔧 开发者指南](docs/DEVELOPER.md)
+- [🚀 部署指南](docs/DEPLOYMENT.md)
+- [🔌 API 参考](docs/API.md)
+- [❓ 常见问题](docs/FAQ.md)
+- [🐛 故障排除](docs/TROUBLESHOOTING.md)
 
 ## 🤝 贡献指南
 
-欢迎提交问题报告和功能请求！
+我们欢迎各种形式的贡献！
 
-### 开发环境搭建
-1. 克隆项目
-2. 安装开发依赖：`pip install -r requirements.txt`
-3. 运行测试：`python -m pytest`
+### 贡献方式
+1. **Bug 报告**: 在 [Issues](https://github.com/TC999/zed-update/issues) 中报告问题
+2. **功能请求**: 提出新功能建议
+3. **代码贡献**: 提交 Pull Request
+4. **文档改进**: 完善项目文档
+5. **测试**: 帮助测试新版本
 
-### 提交 Pull Request
-1. Fork 项目
-2. 创建功能分支
-3. 提交更改
-4. 创建 Pull Request
+### 开发流程
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 创建 Pull Request
+
+## 📊 项目状态
+
+### 版本历史
+- **v2.0.0** - 添加 Modern 微服务架构
+- **v1.5.0** - 增强 Legacy 实现功能
+- **v1.0.0** - 初始 Legacy 实现发布
+
+### 开发计划
+- [ ] Web 管理界面
+- [ ] Docker 容器化部署
+- [ ] 移动端应用支持
+- [ ] 插件系统
+- [ ] 多仓库源支持
+
+## 🆘 获取帮助
+
+### 社区支持
+- 💬 [GitHub Discussions](https://github.com/TC999/zed-update/discussions) - 社区讨论
+- 🐛 [GitHub Issues](https://github.com/TC999/zed-update/issues) - Bug 报告和功能请求
+- 📧 [Email](mailto:support@zed-update.com) - 直接联系
+
+### 紧急支持
+如果遇到紧急问题，请：
+1. 查看 [故障排除指南](docs/TROUBLESHOOTING.md)
+2. 搜索 [已知问题](https://github.com/TC999/zed-update/issues)
+3. 在 Issues 中创建详细的错误报告
 
 ## 📜 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 📞 支持与反馈
+## 🏆 致谢
 
-- **问题报告**: 请在 GitHub Issues 中提交
-- **功能建议**: 欢迎在 Issues 中讨论
-- **技术交流**: 可通过项目主页联系
+感谢以下项目和贡献者：
 
-## 🙏 致谢
-
-- 感谢 Zed 团队开发的优秀编辑器
-- 感谢所有贡献者的支持和反馈
-- 特别感谢开源社区的各种工具和库
+- [Zed Editor](https://zed.dev/) - 优秀的代码编辑器
+- [PyQt5](https://www.riverbankcomputing.com/software/pyqt/) - 强大的 GUI 框架
+- [Go](https://golang.org/) - 高效的后端语言
+- [所有贡献者](https://github.com/TC999/zed-update/contributors) - 感谢每一位贡献者
 
 ---
 
-**免责声明**: 本工具为第三方开发，与 Zed 官方无关。使用前请确保了解相关风险。
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给它一个 Star！⭐**
+
+Made with ❤️ by [Zed Update Team](https://github.com/TC999/zed-update)
+
+</div>
