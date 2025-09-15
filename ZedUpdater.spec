@@ -19,7 +19,7 @@ a = Analysis(
     datas=[
         ('config.example.json', '.'),
         ('main.py', '.'),
-        ('updater', 'updater'),
+        (str(project_root / 'updater'), 'updater'),
         ('README.md', '.'),
         ('LICENSE', '.'),
         ('CHANGELOG.md', '.'),
