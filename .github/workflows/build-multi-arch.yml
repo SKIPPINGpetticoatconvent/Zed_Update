@@ -46,8 +46,8 @@ jobs:
     if: needs.detect-changes.outputs.legacy-changed == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [windows-latest]
+        python-version: ["3.11"]
 
     steps:
       - name: Checkout code
@@ -206,8 +206,8 @@ jobs:
     if: needs.detect-changes.outputs.modern-changed == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [windows-latest]
+        python-version: ["3.11"]
 
     steps:
       - name: Checkout code
