@@ -27,6 +27,9 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
 
     steps:
       - name: Checkout code
@@ -186,22 +189,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from build job
+      - name: Use version from build job
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION_NUMBER="${VERSION#v}"
-          elif [[ "${{ github.ref }}" == refs/heads/main || "${{ github.ref }}" == refs/heads/master ]]; then
-            # Automatic release from main/master branch
-            TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-            COMMIT_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
-            VERSION_NUMBER="1.0.0-dev.${TIMESTAMP}.${COMMIT_SHORT}"
-            VERSION="v${VERSION_NUMBER}"
-          else
-            VERSION="v1.0.0"
-            VERSION_NUMBER="1.0.0"
-          fi
+          # Use the exact version from the build job
+          VERSION="${{ needs.build.outputs.tag }}"
+          VERSION_NUMBER="${{ needs.build.outputs.version }}"
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
           echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
 
