@@ -1,0 +1,217 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  release:
+    types: [created]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('legacy/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-
+
+      - name: Install Python dependencies
+        working-directory: ./legacy
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test Legacy Application
+        working-directory: ./legacy
+        run: |
+          python -c "import PyQt5.QtWidgets; print('PyQt5 available')"
+          python -c "import requests; print('requests available')"
+          python -m py_compile main.py
+
+  build:
+    name: Build Windows Executable
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('legacy/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-
+
+      - name: Install Python dependencies
+        working-directory: ./legacy
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build GUI executable
+        working-directory: ./legacy
+        run: |
+          pyinstaller --onefile --windowed --name zed-updater-gui main.py
+
+      - name: Create console version spec
+        working-directory: ./legacy
+        run: |
+          # Create console version by copying and modifying the spec file
+          $spec = Get-Content "ZedUpdater.spec"
+          $spec = $spec -replace "console=False", "console=True"
+          $spec = $spec -replace "name='ZedUpdater'", "name='ZedUpdater-Console'"
+          $spec | Set-Content "ZedUpdater-Console.spec"
+
+      - name: Build console executable
+        working-directory: ./legacy
+        run: |
+          pyinstaller --onefile --windowed --name zed-updater-console main.py
+
+      - name: Verify builds
+        working-directory: ./legacy
+        run: |
+          if (Test-Path "dist\zed-updater-gui.exe") {
+            echo "GUI executable: $(Get-Item 'dist\zed-updater-gui.exe' | Select-Object -ExpandProperty Length) bytes"
+          } else {
+            echo "ERROR: GUI executable not found"
+            exit 1
+          }
+
+          if (Test-Path "dist\zed-updater-console.exe") {
+            echo "Console executable: $(Get-Item 'dist\zed-updater-console.exe' | Select-Object -ExpandProperty Length) bytes"
+          } else {
+            echo "ERROR: Console executable not found"
+            exit 1
+          }
+
+      - name: Create portable packages
+        working-directory: ./legacy
+        run: |
+          # Create GUI portable package
+          New-Item -ItemType Directory -Force -Path "ZedUpdater-GUI-Portable"
+          Copy-Item "dist\zed-updater-gui.exe" -Destination "ZedUpdater-GUI-Portable\"
+          Copy-Item "..\config.example.json" -Destination "ZedUpdater-GUI-Portable\config.json"
+          Copy-Item "..\README.md" -Destination "ZedUpdater-GUI-Portable\"
+          Copy-Item "..\LICENSE" -Destination "ZedUpdater-GUI-Portable\"
+          Copy-Item "..\CHANGELOG.md" -Destination "ZedUpdater-GUI-Portable\"
+          Copy-Item "..\QUICK_START.md" -Destination "ZedUpdater-GUI-Portable\"
+
+          # Create complete portable package
+          New-Item -ItemType Directory -Force -Path "ZedUpdater-Complete-Portable"
+          Copy-Item "dist\zed-updater-gui.exe" -Destination "ZedUpdater-Complete-Portable\"
+          Copy-Item "dist\zed-updater-console.exe" -Destination "ZedUpdater-Complete-Portable\"
+          Copy-Item "..\config.example.json" -Destination "ZedUpdater-Complete-Portable\config.json"
+          Copy-Item "..\README.md" -Destination "ZedUpdater-Complete-Portable\"
+          Copy-Item "..\LICENSE" -Destination "ZedUpdater-Complete-Portable\"
+          Copy-Item "..\CHANGELOG.md" -Destination "ZedUpdater-Complete-Portable\"
+          Copy-Item "..\QUICK_START.md" -Destination "ZedUpdater-Complete-Portable\"
+
+      - name: Upload GUI executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-GUI-${{ github.run_number }}
+          path: legacy/dist/zed-updater-gui.exe
+          retention-days: 30
+
+      - name: Upload Console executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-Console-${{ github.run_number }}
+          path: legacy/dist/zed-updater-console.exe
+          retention-days: 30
+
+      - name: Upload GUI portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-GUI-Portable-${{ github.run_number }}
+          path: legacy/ZedUpdater-GUI-Portable/
+          retention-days: 30
+
+      - name: Upload complete portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Windows-Complete-Portable-${{ github.run_number }}
+          path: legacy/ZedUpdater-Complete-Portable/
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create release archives
+        run: |
+          # Create ZIP archives for release
+          Compress-Archive -Path "ZedUpdater-Windows-GUI-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-GUI-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Windows-Console-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-Console-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Windows-GUI-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-GUI-Portable-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Windows-Complete-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-Complete-Portable-${{ github.event.release.tag_name }}.zip"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ZedUpdater-Windows-GUI-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Windows-Console-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Windows-GUI-Portable-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Windows-Complete-Portable-${{ github.event.release.tag_name }}.zip
+          body: |
+            ## Zed Updater ${{ github.event.release.tag_name }}
+
+            Windows版本Zed编辑器自动更新程序。
+
+            ### 下载说明
+            - **GUI版本**: 图形界面版本（推荐）
+            - **Console版本**: 控制台版本（用于脚本调用）
+            - **便携版**: 包含配置文件的完整包
+
+            ### 系统要求
+            - Windows 10 或更高版本
+            - 无需安装 Python 环境
+
+            ### 使用方法
+            1. 下载对应的压缩包
+            2. 解压到任意目录
+            3. 运行 ZedUpdater.exe
+            4. 按照界面提示配置 Zed 安装路径
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
