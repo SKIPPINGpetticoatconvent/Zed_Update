@@ -5,13 +5,12 @@ Optimized for GUI-only execution without console window
 """
 
 import sys
-import os
 from pathlib import Path
 
 block_cipher = None
 
 # 获取项目根目录
-project_root = Path(os.getcwd())
+project_root = Path(__file__).parent
 
 a = Analysis(
     ['gui_launcher.pyw'],
@@ -125,7 +124,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     # 图标设置（如果存在）
-    icon='icon.ico' if Path('icon.ico').exists() else None,
+    icon=None,
     # 版本信息
     version_file=None,  # 可以添加版本信息文件
     # 资源文件
@@ -134,24 +133,3 @@ exe = EXE(
     uac_admin=False,  # 不需要管理员权限
     uac_uiaccess=False,
 )
-
-# Windows平台特定的额外配置
-if sys.platform == 'win32':
-    # 添加Windows特定的资源或配置
-    pass
-
-# macOS平台的配置
-if sys.platform == 'darwin':
-    app = BUNDLE(
-        exe,
-        name='ZedUpdater.app',
-        icon='icon.icns' if Path('icon.icns').exists() else None,
-        bundle_identifier='com.zedupdater.app',
-        info_plist={
-            'CFBundleDisplayName': 'Zed Editor Updater',
-            'CFBundleVersion': '1.0.0',
-            'CFBundleShortVersionString': '1.0.0',
-            'NSHighResolutionCapable': True,
-            'LSBackgroundOnly': False,
-        }
-    )

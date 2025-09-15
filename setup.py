@@ -37,11 +37,16 @@ setup(
     url="https://github.com/TC999/zed-loc",
     packages=find_packages(),
     package_data={
-        "zed_updater": ["resources/**/*"],
+        "updater": ["**/*"],
+        "": ["*.json", "*.md", "*.txt"],
     },
+    include_package_data=True,
     entry_points={
         "console_scripts": [
-            "zed-updater=zed_updater.__main__:main",
+            "zed-updater=main:main",
+        ],
+        "gui_scripts": [
+            "zed-updater-gui=gui_launcher:main",
         ],
     },
     python_requires=">=3.7",
@@ -57,6 +62,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Utilities",
     ],
     keywords="zed, editor, updater, automatic",
