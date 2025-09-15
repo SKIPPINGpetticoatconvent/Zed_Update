@@ -28,34 +28,34 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('backend/go.sum') }}
+          key: ${{ runner.os }}-go-${{ hashFiles('modern/backend/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
 
       - name: Download Go dependencies
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: go mod download
 
       - name: Verify Go dependencies
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: go mod verify
 
       - name: Run Go tests
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: go test -v ./...
 
       - name: Build Go binary for Linux
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o zed-update-backend-linux-amd64 .
 
       - name: Build Go binary for Windows
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: |
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o zed-update-backend-windows-amd64.exe .
 
       - name: Build Go binary for macOS
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: |
           CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o zed-update-backend-darwin-amd64 .
           CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o zed-update-backend-darwin-arm64 .
@@ -65,7 +65,7 @@ jobs:
         with:
           name: go-binaries
           path: |
-            backend/zed-update-backend-*
+            modern/backend/zed-update-backend-*
           retention-days: 30
 
   build-frontend:
@@ -89,13 +89,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('frontend/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('modern/frontend/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
             ${{ runner.os }}-pip-
 
       - name: Install Python dependencies
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -105,33 +105,33 @@ jobs:
 
       - name: Test Python application (Linux/macOS)
         if: runner.os != 'Windows'
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
-          python -c "import tkinter; print('tkinter available')"
+          python -c "import PyQt5.QtWidgets; print('PyQt5 available')"
           python -c "import requests; print('requests available')"
 
       - name: Test Python application (Windows)
         if: runner.os == 'Windows'
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
-          python -c "import tkinter; print('tkinter available')"
+          python -c "import PyQt5.QtWidgets; print('PyQt5 available')"
           python -c "import requests; print('requests available')"
 
       - name: Build executable with PyInstaller (Linux)
         if: runner.os == 'Linux'
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
           pyinstaller --onefile --windowed --name zed-update-gui-linux main.py
 
       - name: Build executable with PyInstaller (Windows)
         if: runner.os == 'Windows'
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
           pyinstaller --onefile --windowed --name zed-update-gui-windows main.py
 
       - name: Build executable with PyInstaller (macOS)
         if: runner.os == 'macOS'
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
           pyinstaller --onefile --windowed --name zed-update-gui-macos main.py
 
@@ -140,7 +140,7 @@ jobs:
         with:
           name: python-executables-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
-            frontend/dist/zed-update-gui-*
+            modern/frontend/dist/zed-update-gui-*
           retention-days: 30
 
   integration-test:
@@ -167,18 +167,18 @@ jobs:
           python-version: "3.11"
 
       - name: Download Go dependencies
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: go mod download
 
       - name: Install Python dependencies
-        working-directory: ./frontend
+        working-directory: ./modern/frontend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
 
       - name: Start Go backend in background
-        working-directory: ./backend
+        working-directory: ./modern/backend
         run: |
           go run main.go &
           sleep 5
