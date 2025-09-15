@@ -55,9 +55,6 @@ jobs:
       - name: Get version info
         id: version
         run: |
-          $version = "1.0.0"
-          $tag = "v$version"
-
           # Check if this is a tag push
           if ("${{ github.ref }}" -like "refs/tags/v*") {
             $tag = "${{ github.ref_name }}"
@@ -66,13 +63,24 @@ jobs:
           # Check for manual version bump
           elseif ("${{ github.event.inputs.version_type }}" -ne "none" -and "${{ github.event.inputs.version_type }}" -ne "") {
             # Simple version bump logic
-            $parts = $version.Split(".")
+            $parts = "1.0.0".Split(".")
             switch ("${{ github.event.inputs.version_type }}") {
               "major" { $parts[0] = [int]$parts[0] + 1; $parts[1] = "0"; $parts[2] = "0" }
               "minor" { $parts[1] = [int]$parts[1] + 1; $parts[2] = "0" }
               "patch" { $parts[2] = [int]$parts[2] + 1 }
             }
             $version = $parts -join "."
+            $tag = "v$version"
+          }
+          # Automatic build from main/master branch
+          elseif ("${{ github.ref }}" -eq "refs/heads/main" -or "${{ github.ref }}" -eq "refs/heads/master") {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $commitShort = "${{ github.sha }}".Substring(0, 8)
+            $version = "1.0.0-dev.$timestamp.$commitShort"
+            $tag = "v$version"
+          }
+          else {
+            $version = "1.0.0"
             $tag = "v$version"
           }
 
@@ -188,8 +196,8 @@ jobs:
             # Automatic release from main/master branch
             TIMESTAMP=$(date +%Y%m%d-%H%M%S)
             COMMIT_SHORT=$(echo "${{ github.sha }}" | cut -c1-8)
-            VERSION="v1.0.0-dev.${TIMESTAMP}.${COMMIT_SHORT}"
             VERSION_NUMBER="1.0.0-dev.${TIMESTAMP}.${COMMIT_SHORT}"
+            VERSION="v${VERSION_NUMBER}"
           else
             VERSION="v1.0.0"
             VERSION_NUMBER="1.0.0"
