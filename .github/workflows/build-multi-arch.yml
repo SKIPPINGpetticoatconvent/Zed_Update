@@ -368,9 +368,9 @@ jobs:
 
       - name: Run gosec Security Scanner
         if: needs.detect-changes.outputs.modern-changed == 'true'
-        uses: securecodewarrior/github-action-gosec@v1
-        with:
-          args: "-fmt sarif -out gosec-results.sarif ./modern/backend/..."
+        run: |
+          go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+          gosec -fmt sarif -out gosec-results.sarif ./modern/backend/...
 
   package-release:
     name: Package Release
