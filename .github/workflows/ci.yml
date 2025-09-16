@@ -47,8 +47,8 @@ jobs:
           python -c "import requests; print('requests available')"
           python -m py_compile main.py
 
-  build:
-    name: Build Windows Executable
+  build-legacy:
+    name: Build Legacy Implementation
     runs-on: windows-latest
     needs: test
 
@@ -139,34 +139,121 @@ jobs:
       - name: Upload GUI executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-GUI-${{ github.run_number }}
+          name: ZedUpdater-Legacy-GUI-${{ github.run_number }}
           path: legacy/dist/zed-updater-gui.exe
           retention-days: 30
 
       - name: Upload Console executable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-Console-${{ github.run_number }}
+          name: ZedUpdater-Legacy-Console-${{ github.run_number }}
           path: legacy/dist/zed-updater-console.exe
           retention-days: 30
 
       - name: Upload GUI portable package
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-GUI-Portable-${{ github.run_number }}
+          name: ZedUpdater-Legacy-GUI-Portable-${{ github.run_number }}
           path: legacy/ZedUpdater-GUI-Portable/
           retention-days: 30
 
       - name: Upload complete portable package
         uses: actions/upload-artifact@v4
         with:
-          name: ZedUpdater-Windows-Complete-Portable-${{ github.run_number }}
+          name: ZedUpdater-Legacy-Complete-Portable-${{ github.run_number }}
           path: legacy/ZedUpdater-Complete-Portable/
+          retention-days: 30
+
+  build-modern:
+    name: Build Modern Implementation
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-modern-${{ hashFiles('modern/backend/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-modern-
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-modern-${{ env.PYTHON_VERSION }}-${{ hashFiles('modern/frontend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-modern-${{ env.PYTHON_VERSION }}-
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build Go backend
+        working-directory: ./modern/backend
+        run: |
+          go mod download
+          go test -v ./...
+          go build -o zed-updater-backend.exe .
+
+      - name: Build Python frontend
+        working-directory: ./modern/frontend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pyinstaller --onefile --windowed --name zed-updater-modern main.py
+
+      - name: Verify modern builds
+        run: |
+          if (Test-Path "modern/backend/zed-updater-backend.exe") {
+            echo "Backend executable: $(Get-Item 'modern/backend/zed-updater-backend.exe' | Select-Object -ExpandProperty Length) bytes"
+          } else {
+            echo "ERROR: Backend executable not found"
+            exit 1
+          }
+
+          if (Test-Path "modern/frontend/dist/zed-updater-modern.exe") {
+            echo "Frontend executable: $(Get-Item 'modern/frontend/dist/zed-updater-modern.exe' | Select-Object -ExpandProperty Length) bytes"
+          } else {
+            echo "ERROR: Frontend executable not found"
+            exit 1
+          }
+
+      - name: Create modern portable package
+        run: |
+          # Create modern implementation package
+          New-Item -ItemType Directory -Force -Path "ZedUpdater-Modern-Portable"
+          Copy-Item "modern/backend/zed-updater-backend.exe" -Destination "ZedUpdater-Modern-Portable\"
+          Copy-Item "modern/frontend/dist/zed-updater-modern.exe" -Destination "ZedUpdater-Modern-Portable\"
+          Copy-Item "config.example.json" -Destination "ZedUpdater-Modern-Portable\config.json"
+          Copy-Item "README.md" -Destination "ZedUpdater-Modern-Portable\"
+          Copy-Item "LICENSE" -Destination "ZedUpdater-Modern-Portable\"
+          Copy-Item "CHANGELOG.md" -Destination "ZedUpdater-Modern-Portable\"
+          Copy-Item "QUICK_START.md" -Destination "ZedUpdater-Modern-Portable\"
+
+      - name: Upload modern portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZedUpdater-Modern-Portable-${{ github.run_number }}
+          path: ZedUpdater-Modern-Portable/
           retention-days: 30
 
   release:
     if: github.event_name == 'release'
-    needs: build
+    needs: [build-legacy, build-modern]
     runs-on: windows-latest
 
     steps:
@@ -179,38 +266,53 @@ jobs:
       - name: Create release archives
         run: |
           # Create ZIP archives for release
-          Compress-Archive -Path "ZedUpdater-Windows-GUI-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-GUI-${{ github.event.release.tag_name }}.zip"
-          Compress-Archive -Path "ZedUpdater-Windows-Console-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-Console-${{ github.event.release.tag_name }}.zip"
-          Compress-Archive -Path "ZedUpdater-Windows-GUI-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-GUI-Portable-${{ github.event.release.tag_name }}.zip"
-          Compress-Archive -Path "ZedUpdater-Windows-Complete-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Windows-Complete-Portable-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Legacy-GUI-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Legacy-GUI-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Legacy-Console-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Legacy-Console-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Legacy-GUI-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Legacy-GUI-Portable-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Legacy-Complete-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Legacy-Complete-Portable-${{ github.event.release.tag_name }}.zip"
+          Compress-Archive -Path "ZedUpdater-Modern-Portable-${{ github.run_number }}\*" -DestinationPath "ZedUpdater-Modern-Portable-${{ github.event.release.tag_name }}.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ZedUpdater-Windows-GUI-${{ github.event.release.tag_name }}.zip
-            ZedUpdater-Windows-Console-${{ github.event.release.tag_name }}.zip
-            ZedUpdater-Windows-GUI-Portable-${{ github.event.release.tag_name }}.zip
-            ZedUpdater-Windows-Complete-Portable-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Legacy-GUI-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Legacy-Console-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Legacy-GUI-Portable-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Legacy-Complete-Portable-${{ github.event.release.tag_name }}.zip
+            ZedUpdater-Modern-Portable-${{ github.event.release.tag_name }}.zip
           body: |
             ## Zed Updater ${{ github.event.release.tag_name }}
 
-            Windows版本Zed编辑器自动更新程序。
+            Windows版本Zed编辑器自动更新程序，包含Legacy和Modern两个实现。
+
+            ### Legacy实现（传统版本）
+            - **技术**: 纯PyQt5单文件应用
+            - **特点**: 图形界面和控制台版本
+            - **适用**: 对稳定性要求高的环境
+
+            ### Modern实现（新架构）
+            - **技术**: Go后端 + PyQt5前端
+            - **特点**: 微服务架构，更好的性能
+            - **适用**: 需要更好扩展性的场景
 
             ### 下载说明
-            - **GUI版本**: 图形界面版本（推荐）
-            - **Console版本**: 控制台版本（用于脚本调用）
-            - **便携版**: 包含配置文件的完整包
+            - **Legacy-GUI**: 传统图形界面版本
+            - **Legacy-Console**: 传统控制台版本
+            - **Legacy-GUI-Portable**: 传统便携版（包含配置）
+            - **Legacy-Complete-Portable**: 传统完整便携版
+            - **Modern-Portable**: 新架构完整便携版
 
             ### 系统要求
             - Windows 10 或更高版本
-            - 无需安装 Python 环境
+            - Legacy版本无需额外依赖
+            - Modern版本需要启动两个程序（后端+前端）
 
             ### 使用方法
             1. 下载对应的压缩包
             2. 解压到任意目录
-            3. 运行 ZedUpdater.exe
-            4. 按照界面提示配置 Zed 安装路径
+            3. 运行对应版本的程序
+            4. 按照界面提示配置Zed安装路径
           draft: false
           prerelease: false
         env:
