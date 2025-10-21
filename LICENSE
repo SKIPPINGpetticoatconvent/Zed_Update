@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2024 Zed Editor Auto Updater
+Copyright (c) 2025 SKIPPINGpetticoatconvent
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,19 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-DISCLAIMER:
-This software is a third-party tool and is not affiliated with or endorsed by
-Zed Industries or the official Zed editor project. Use at your own risk.
-
-The software automatically downloads and installs updates from the official
-Zed editor repository. Users are responsible for ensuring they have the legal
-right to download and use the Zed editor software in their jurisdiction.
-
-By using this software, you acknowledge that:
-1. This is an unofficial tool created by the community
-2. The authors are not responsible for any damage to your system or data
-3. You should always backup your important files before using automated update tools
-4. The software connects to external services (GitHub) to check for updates
