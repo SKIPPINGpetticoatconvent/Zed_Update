@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Core updater functionality for Zed Editor
+Simplified Zed Editor updater - Unified architecture
 """
 
 import os
@@ -10,17 +10,16 @@ import hashlib
 import tempfile
 import subprocess
 import time
+import json
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
+from datetime import datetime
 
 import requests
 import psutil
-
 from .config import ConfigManager
-from ..services.github_api import GitHubAPI, ReleaseInfo
 from ..utils.logger import get_logger
-from ..utils.encoding import EncodingUtils
 
 
 @dataclass
@@ -32,20 +31,33 @@ class UpdateResult:
     error_code: Optional[str] = None
 
 
+@dataclass
+class ReleaseInfo:
+    """Release information"""
+    version: str
+    release_date: datetime
+    download_url: str
+    description: str
+    size: int
+    sha256: Optional[str] = None
+
+
 class ZedUpdater:
-    """Core Zed updater with improved error handling and progress tracking"""
+    """Simplified and unified Zed updater"""
 
     def __init__(self, config: ConfigManager):
         self.config = config
         self.logger = get_logger(__name__)
-        self.github_api = GitHubAPI(
-            repo=config.get('github_repo'),
-            api_url=config.get('github_api_url')
-        )
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'ZedUpdater/2.0',
+            'Accept': 'application/vnd.github.v3+json'
+        })
 
         # Setup proxy if configured
         if config.get('proxy_enabled') and config.get('proxy_url'):
-            self.github_api.set_proxy(config.get('proxy_url'))
+            proxy_url = config.get('proxy_url')
+            self.session.proxies = {'http': proxy_url, 'https': proxy_url}
 
     def get_current_version(self) -> Optional[str]:
         """Get currently installed Zed version"""
@@ -98,7 +110,45 @@ class ZedUpdater:
     def get_latest_version_info(self) -> Optional[ReleaseInfo]:
         """Get latest version information from GitHub"""
         try:
-            return self.github_api.get_latest_release()
+            repo = self.config.get('github_repo', 'TC999/zed-loc')
+            url = f"https://api.github.com/repos/{repo}/releases/latest"
+            
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Extract version from tag
+            tag_name = data.get('tag_name', '')
+            version = tag_name.lstrip('v') if tag_name else 'latest'
+            
+            # Find download URL (prefer Windows executables)
+            download_url = ""
+            for asset in data.get('assets', []):
+                name = asset.get('name', '').lower()
+                if 'windows' in name or 'win' in name or name.endswith('.exe'):
+                    download_url = asset.get('browser_download_url', '')
+                    break
+            
+            # Fallback to first asset
+            if not download_url and data.get('assets'):
+                download_url = data['assets'][0].get('browser_download_url', '')
+            
+            if not download_url:
+                self.logger.error("No suitable download asset found")
+                return None
+            
+            release_info = ReleaseInfo(
+                version=version,
+                release_date=datetime.fromisoformat(data['published_at'].replace('Z', '+00:00')),
+                download_url=download_url,
+                description=data.get('body', ''),
+                size=sum(asset.get('size', 0) for asset in data.get('assets', [])),
+                sha256=None
+            )
+            
+            self.logger.info(f"Found latest version: {version}")
+            return release_info
+            
         except Exception as e:
             self.logger.error(f"Failed to get latest version info: {e}")
             return None
@@ -164,64 +214,50 @@ class ZedUpdater:
         progress_callback: Optional[Callable[[float, str], None]] = None
     ) -> Optional[Path]:
         """Download update file"""
-        temp_dir = self.config.get_temp_dir()
-        temp_dir.mkdir(parents=True, exist_ok=True)
-
-        download_path = temp_dir / f"zed_update_{release_info.version}.exe"
-
         try:
+            temp_dir = self.config.get_temp_dir()
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            download_path = temp_dir / f"zed_update_{release_info.version}.exe"
+            
             self.logger.info(f"Downloading from: {release_info.download_url}")
-
-            # Setup request with timeout and retries
+            
             timeout = self.config.get('download_timeout', 300)
             retry_count = self.config.get('retry_count', 3)
-
+            
             for attempt in range(retry_count):
                 try:
-                    response = requests.get(
-                        release_info.download_url,
-                        stream=True,
-                        timeout=timeout
-                    )
+                    response = self.session.get(release_info.download_url, stream=True, timeout=timeout)
                     response.raise_for_status()
-
-                    # Get total size
+                    
                     total_size = int(response.headers.get('content-length', 0))
                     downloaded_size = 0
-
+                    
                     with open(download_path, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
                                 downloaded_size += len(chunk)
-
+                                
                                 # Report progress
                                 if progress_callback and total_size > 0:
                                     progress = (downloaded_size / total_size) * 100
-                                    progress_callback(progress, f"Downloading... {progress:.1f}%")
-
-                    # Verify download integrity
-                    if release_info.sha256:
-                        if not self.github_api.verify_checksum(str(download_path), release_info.sha256):
-                            self.logger.error("Download checksum verification failed")
-                            if attempt < retry_count - 1:
-                                continue
-                            return None
-
-                    self.logger.info(f"Download completed: {download_path}")
+                                    progress_callback(progress, f"下载中... {progress:.1f}%")
+                    
+                    self.logger.info(f"下载完成: {download_path}")
                     return download_path
-
+                    
                 except requests.exceptions.RequestException as e:
-                    self.logger.warning(f"Download attempt {attempt + 1} failed: {e}")
+                    self.logger.warning(f"下载尝试 {attempt + 1} 失败: {e}")
                     if attempt < retry_count - 1:
-                        time.sleep(2 ** attempt)  # Exponential backoff
+                        time.sleep(2 ** attempt)
                         continue
                     else:
-                        self.logger.error(f"Download failed after {retry_count} attempts")
+                        self.logger.error(f"下载失败，已重试 {retry_count} 次")
                         return None
 
         except Exception as e:
-            self.logger.error(f"Download error: {e}")
+            self.logger.error(f"下载错误: {e}")
             return None
 
     def create_backup(self) -> Optional[Path]:
@@ -340,72 +376,60 @@ class ZedUpdater:
             )
 
     def _stop_zed_processes(self) -> None:
-        """Stop all running Zed processes"""
+        """停止所有Zed进程"""
         try:
             zed_processes = []
             for proc in psutil.process_iter(['pid', 'name', 'exe']):
                 try:
-                    if proc.info['name'] and 'zed' in proc.info['name'].lower():
-                        if proc.info['exe'] and Path(proc.info['exe']).name.lower().startswith('zed'):
-                            zed_processes.append(proc)
+                    if (proc.info['name'] and 'zed' in proc.info['name'].lower() and
+                        proc.info['exe'] and Path(proc.info['exe']).name.lower().startswith('zed')):
+                        zed_processes.append(proc)
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
 
             for proc in zed_processes:
                 try:
-                    self.logger.info(f"Stopping Zed process: {proc.pid}")
+                    self.logger.info(f"停止Zed进程: {proc.pid}")
                     proc.terminate()
-
-                    # Wait for process to terminate
-                    try:
-                        proc.wait(timeout=10)
-                    except psutil.TimeoutExpired:
-                        proc.kill()  # Force kill if not terminated
-
+                    proc.wait(timeout=10)
+                except psutil.TimeoutExpired:
+                    proc.kill()  # 强制终止
                 except Exception as e:
-                    self.logger.warning(f"Failed to stop process {proc.pid}: {e}")
+                    self.logger.warning(f"停止进程 {proc.pid} 失败: {e}")
 
         except Exception as e:
-            self.logger.warning(f"Error stopping Zed processes: {e}")
-
-    def _extract_version_from_file(self, file_path: Path) -> Optional[str]:
-        """Extract version from installed file"""
-        try:
-            # Simple version extraction - could be enhanced
-            return "installed"
-        except Exception:
-            return None
+            self.logger.warning(f"停止Zed进程时出错: {e}")
 
     def check_and_update(self, progress_callback: Optional[Callable[[float, str], None]] = None) -> UpdateResult:
-        """Check for updates and perform installation if available"""
+        """检查更新并执行安装"""
         try:
-            # Check for updates
+            # 检查更新
             release_info = self.check_for_updates()
             if not release_info:
                 return UpdateResult(
                     success=True,
-                    message="No updates available"
+                    message="没有可用的更新"
                 )
 
-            # Download update
+            # 下载更新
             if progress_callback:
-                progress_callback(0, "Downloading update...")
+                progress_callback(0, "开始下载更新...")
 
             download_path = self.download_update(release_info, progress_callback)
             if not download_path:
                 return UpdateResult(
                     success=False,
-                    message="Download failed",
+                    message="下载失败",
                     error_code="DOWNLOAD_FAILED"
                 )
 
-            # Install update
+            # 安装更新
             if progress_callback:
-                progress_callback(100, "Installing update...")
+                progress_callback(80, "正在安装更新...")
 
             install_result = self.install_update(download_path)
 
-            # Auto-start if configured and installation successful
+            # 如果配置了自动启动且安装成功
             if (install_result.success and
                 self.config.get('auto_start_after_update')):
                 self.start_zed()
@@ -413,7 +437,7 @@ class ZedUpdater:
             return install_result
 
         except Exception as e:
-            error_msg = f"Update check/install failed: {e}"
+            error_msg = f"更新检查/安装失败: {e}"
             self.logger.error(error_msg)
             return UpdateResult(
                 success=False,
@@ -422,39 +446,38 @@ class ZedUpdater:
             )
 
     def start_zed(self) -> bool:
-        """Start Zed application"""
-        zed_path = self.config.get('zed_install_path')
+        """启动Zed应用程序"""
+        zed_path = self.config.get('zed_install_path', 'D:\\Zed.exe')
 
         if not zed_path or not Path(zed_path).exists():
-            self.logger.error(f"Zed executable not found: {zed_path}")
+            self.logger.error(f"Zed可执行文件不存在: {zed_path}")
             return False
 
         try:
-            self.logger.info(f"Starting Zed: {zed_path}")
-            subprocess.Popen([zed_path], shell=False)
+            self.logger.info(f"启动Zed: {zed_path}")
+            subprocess.Popen([zed_path])
             return True
         except Exception as e:
-            self.logger.error(f"Failed to start Zed: {e}")
+            self.logger.error(f"启动Zed失败: {e}")
             return False
 
     def cleanup_temp_files(self) -> None:
-        """Clean up temporary files"""
+        """清理临时文件"""
         try:
             temp_dir = self.config.get_temp_dir()
             if temp_dir.exists():
-                # Remove old temp files (older than 1 day)
-                import time
+                # 删除1天前的临时文件
                 current_time = time.time()
-                max_age = 24 * 60 * 60  # 1 day
+                max_age = 24 * 60 * 60  # 1天
 
                 for file_path in temp_dir.glob("*"):
                     if file_path.is_file():
                         if current_time - file_path.stat().st_mtime > max_age:
                             try:
                                 file_path.unlink()
-                                self.logger.debug(f"Cleaned temp file: {file_path}")
+                                self.logger.debug(f"清理临时文件: {file_path}")
                             except Exception as e:
-                                self.logger.warning(f"Failed to clean temp file {file_path}: {e}")
+                                self.logger.warning(f"清理临时文件失败: {file_path}")
 
         except Exception as e:
-            self.logger.warning(f"Failed to cleanup temp files: {e}")
+            self.logger.warning(f"清理临时文件失败: {e}")

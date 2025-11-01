@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller specification file for ZedUpdater
-Optimized for GUI-only execution without console window
+Simplified for unified architecture
 """
 
 import sys
@@ -9,21 +9,18 @@ from pathlib import Path
 
 block_cipher = None
 
-# 获取项目根目录
+# Get project root directory
 project_root = Path.cwd()
 
 a = Analysis(
-    ['gui_launcher.pyw'],
+    ['src/zed_updater/gui_main.py'],  # Updated entry point
     pathex=[str(project_root)],
     binaries=[],
     datas=[
         ('config.example.json', '.'),
-        ('main.py', '.'),
-        (str(project_root / 'updater'), 'updater'),
         ('README.md', '.'),
         ('LICENSE', '.'),
-        ('CHANGELOG.md', '.'),
-        ('QUICK_START.md', '.'),
+        ('src/zed_updater', 'zed_updater'),  # Package data
     ],
     hiddenimports=[
         # PyQt5 core modules
@@ -31,62 +28,34 @@ a = Analysis(
         'PyQt5.QtCore',
         'PyQt5.QtWidgets',
         'PyQt5.QtGui',
-        'PyQt5.Qt',
         # Windows specific modules
         'win32api',
         'win32con',
         'win32file',
-        'win32gui',
-        'win32process',
         'pywintypes',
-        'win32com',
-        'win32com.client',
-        # System and utility modules
+        # Core dependencies
         'psutil',
-        'schedule',
         'requests',
-        'urllib3',
-        'chardet',
-        'dateutil',
-        'dateutil.parser',
-        'dateutil.tz',
-        # Python standard library modules that might be missed
-        'ctypes',
-        'ctypes.wintypes',
-        'threading',
-        'concurrent.futures',
+        # Python standard library modules
         'json',
         'logging',
         'pathlib',
         'subprocess',
         'tempfile',
-        'zipfile',
         'shutil',
         'hashlib',
-        'socket',
-        'ssl',
-        'certifi',
-        # Encoding modules
-        'encodings',
-        'encodings.utf_8',
-        'encodings.cp1252',
-        'encodings.ascii',
-        'locale',
-        'codecs',
+        'zipfile',
+        'datetime',
+        'threading',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # 排除不需要的模块以减小文件大小
+        # Exclude unnecessary modules to reduce size
         'tkinter',
         'matplotlib',
         'numpy',
-        'pandas',
-        'scipy',
-        'IPython',
-        'jupyter',
-        'notebook',
         'test',
         'tests',
         'unittest',
@@ -114,22 +83,15 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    # 关键设置：禁用控制台窗口
-    console=False,
-    # 禁用窗口化回溯，避免错误弹窗
+    console=False,  # No console window
     disable_windowed_traceback=True,
-    # Windows专用设置
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # 图标设置（如果存在）
     icon=None,
-    # 版本信息
-    version_file=None,  # 可以添加版本信息文件
-    # 资源文件
+    version_file=None,
     resources=[],
-    # UPX 压缩排除文件
-    uac_admin=False,  # 不需要管理员权限
+    uac_admin=False,
     uac_uiaccess=False,
 )

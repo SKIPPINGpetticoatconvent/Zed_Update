@@ -1,75 +1,23 @@
 {
-  "_comment": "Zed Editor 自动更新程序配置文件示例",
-  "_description": "将此文件复制为 config.json 并根据需要修改设置",
-
-  "_基本设置": "==================",
   "zed_install_path": "D:\\Zed.exe",
-  "backup_enabled": true,
-  "backup_count": 3,
-
-  "_GitHub设置": "==================",
   "github_repo": "TC999/zed-loc",
-  "github_api_url": "https://api.github.com/repos/TC999/zed-loc/releases/latest",
-  "download_timeout": 300,
-  "retry_count": 3,
 
-  "_自动更新设置": "==================",
   "auto_check_enabled": true,
   "check_interval_hours": 24,
   "check_on_startup": true,
   "auto_download": true,
   "auto_install": false,
-  "_auto_install_comment": "自动安装功能建议谨慎使用，建议保持为false",
-
-  "_启动设置": "==================",
   "auto_start_after_update": true,
-  "start_minimized": false,
 
-  "_通知设置": "==================",
-  "show_notifications": true,
-  "notify_on_update_available": true,
-  "notify_on_update_complete": true,
+  "backup_enabled": true,
+  "backup_count": 3,
 
-  "_定时任务设置": "==================",
-  "scheduled_update_enabled": false,
-  "scheduled_time": "02:00",
-  "_scheduled_time_comment": "24小时格式，如 02:00 表示凌晨2点",
-  "scheduled_days": [0, 1, 2, 3, 4, 5, 6],
-  "_scheduled_days_comment": "0=周一, 1=周二, ..., 6=周日",
-
-  "_高级设置": "==================",
-  "use_proxy": false,
-  "proxy_url": "",
-  "_proxy_url_example": "http://proxy.company.com:8080",
-  "verify_signature": true,
-  "log_level": "INFO",
-  "_log_level_options": ["DEBUG", "INFO", "WARNING", "ERROR"],
-
-  "_界面设置": "==================",
-  "window_width": 700,
-  "window_height": 600,
   "minimize_to_tray": true,
-  "start_with_system": false,
+  "notification_enabled": true,
+  "language": "zh_CN",
 
-  "_运行时信息": "==================",
-  "current_version": "",
-  "last_check_time": "",
-  "last_update_time": "",
-
-  "_配置说明": {
-    "zed_install_path": "Zed.exe的完整路径，必须配置",
-    "backup_enabled": "是否启用自动备份功能",
-    "backup_count": "保留的备份文件数量",
-    "auto_check_enabled": "是否启用自动检查更新",
-    "check_interval_hours": "自动检查的间隔时间（小时）",
-    "auto_download": "发现更新时是否自动下载",
-    "auto_install": "下载完成后是否自动安装（谨慎使用）",
-    "scheduled_update_enabled": "是否启用定时更新检查",
-    "scheduled_time": "定时检查的时间（HH:MM格式）",
-    "scheduled_days": "定时检查的天数（0-6，0为周一）",
-    "use_proxy": "是否使用代理服务器",
-    "proxy_url": "代理服务器地址",
-    "minimize_to_tray": "是否最小化到系统托盘",
-    "start_with_system": "是否开机自启动"
-  }
+  "download_timeout": 300,
+  "retry_count": 3,
+  "proxy_enabled": false,
+  "proxy_url": ""
 }
